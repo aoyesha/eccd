@@ -325,36 +325,70 @@ Widget _form(){
             const SizedBox(height:16),
 
           // District, Division, and Region
-          Row(
-            children:[
-              Expanded(
-                child: _dropdown(
-                  hint:'District',
-                  items: district,
-                  value: selectedDistrict,
-                  onChanged: (v) => setState(() => selectedDistrict = v),
-                ),
-              ),
-              const SizedBox(width:12),
-              Expanded(
-                child: _dropdown(
-                  hint:'Division',
-                  items: division,
-                  value: selectedDivision,
-                  onChanged: (v) => setState(() => selectedDivision = v),
-                ),
-              ),
-              const SizedBox(width:12),
-              Expanded(
-                child: _dropdown(
-                  hint: 'Region',
-                  items: region,
-                  value: selectedRegion,
-                  onChanged: (v) => setState(() => selectedRegion = v),
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // MOBILE → stack vertically
+              if (constraints.maxWidth < 500) {
+                return Column(
+                  children: [
+                    _dropdown(
+                      hint: 'District',
+                      items: district,
+                      value: selectedDistrict,
+                      onChanged: (v) => setState(() => selectedDistrict = v),
+                    ),
+                    const SizedBox(height: 12),
+                    _dropdown(
+                      hint: 'Division',
+                      items: division,
+                      value: selectedDivision,
+                      onChanged: (v) => setState(() => selectedDivision = v),
+                    ),
+                    const SizedBox(height: 12),
+                    _dropdown(
+                      hint: 'Region',
+                      items: region,
+                      value: selectedRegion,
+                      onChanged: (v) => setState(() => selectedRegion = v),
+                    ),
+                  ],
+                );
+              }
+
+              // DESKTOP/TABLET → row
+              return Row(
+                children: [
+                  Expanded(
+                    child: _dropdown(
+                      hint: 'District',
+                      items: district,
+                      value: selectedDistrict,
+                      onChanged: (v) => setState(() => selectedDistrict = v),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _dropdown(
+                      hint: 'Division',
+                      items: division,
+                      value: selectedDivision,
+                      onChanged: (v) => setState(() => selectedDivision = v),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _dropdown(
+                      hint: 'Region',
+                      items: region,
+                      value: selectedRegion,
+                      onChanged: (v) => setState(() => selectedRegion = v),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
+
           const SizedBox(height:18),
           // Email
           _label('Your Email:'),
