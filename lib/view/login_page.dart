@@ -54,22 +54,33 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _mobileLayout() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const SizedBox(height: 80),
-          Image.asset('assets/kids.png', width: 220),
-          const SizedBox(height: 24),
-          _title(),
-          const SizedBox(height: 40),
-          Align(alignment: Alignment.centerLeft, child: _form()),
-          const SizedBox(height: 24),
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Image.asset('assets/kids.png', width: 220),
+                    const SizedBox(height: 24),
+                    _title(),
+                    const SizedBox(height: 40),
+                    Align(alignment: Alignment.centerLeft, child: _form()),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
+
 
   Widget _desktopLayout() {
     return Center(
