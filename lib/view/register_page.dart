@@ -1,7 +1,7 @@
+
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import '../services/database_service.dart';
 
 import 'login_page.dart';
 
@@ -17,7 +17,7 @@ class _RegisterPageState extends State<RegisterPage>{
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
-  final nameController = TextEditingController(); // added
+
 
   bool obscure = true;
 
@@ -38,10 +38,8 @@ class _RegisterPageState extends State<RegisterPage>{
   void dispose(){
     emailController.dispose();
     passwordController.dispose();
-    nameController.dispose(); // added
     super.dispose();
   }
-
   @override
   Widget build(BuildContext context){
     return Scaffold(
@@ -64,9 +62,8 @@ class _RegisterPageState extends State<RegisterPage>{
       ),
     );
   }
-
   // Phone Layout
-  Widget _mobileLayout() {
+Widget _mobileLayout() {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal:24),
       child: Column(
@@ -81,22 +78,20 @@ class _RegisterPageState extends State<RegisterPage>{
           const SizedBox(height:24),
           _title(),
 
-          const SizedBox(height:45),
+          const SizedBox(height:40),
 
           _formHeader(),
-          const SizedBox(height: 16),
           Align(
-              alignment: Alignment.centerLeft,
-              child: _form()
+            alignment: Alignment.centerLeft,
+            child: _form()
           ),
           const SizedBox(height:24),
         ],
       ),
     );
-  }
-
-  // Desktop Layout
-  Widget _desktopLayout(){
+}
+// Desktop Layout
+Widget _desktopLayout(){
     return Center(
       child: SizedBox(
         width: 1100,
@@ -146,10 +141,9 @@ class _RegisterPageState extends State<RegisterPage>{
         ),
       ),
     );
-  }
-
-  // Title
-  Widget _title() {
+}
+// Title
+Widget _title() {
     return const AutoSizeText(
       "Early Childhood\nDevelopment Checklist",
       textAlign: TextAlign.center,
@@ -160,12 +154,12 @@ class _RegisterPageState extends State<RegisterPage>{
         fontWeight: FontWeight.w700,
         color: Colors.white,
         height: 1.2,
+
       ),
     );
-  }
-
-  // Form Header
-  Widget _formHeader(){
+}
+// Form
+Widget _formHeader(){
     return const Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -174,7 +168,7 @@ class _RegisterPageState extends State<RegisterPage>{
             "Create an Account",
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 23, // slightly smaller
+              fontSize: 35,
               fontWeight: FontWeight.w700,
               color: Colors.white,
             ),
@@ -184,7 +178,7 @@ class _RegisterPageState extends State<RegisterPage>{
     );
   }
 
-  Widget _label(String text){
+Widget _label(String text){
     return Padding(
       padding: const EdgeInsets.only(bottom:6),
       child: Text(
@@ -196,14 +190,14 @@ class _RegisterPageState extends State<RegisterPage>{
         ),
       ),
     );
-  }
+}
 
-  Widget _dropdown({
+Widget _dropdown({
     required String hint,
     required List<String> items,
     required String? value,
     required ValueChanged<String?> onChanged,
-  }) {
+}) {
     return DropdownButtonFormField<String>(
       value: value,
       decoration:  InputDecoration(
@@ -218,13 +212,13 @@ class _RegisterPageState extends State<RegisterPage>{
       ),
       items: items.map((item){
         return DropdownMenuItem<String>(
-            value: item,
-            child: Text(item)
+          value: item,
+          child: Text(item)
         );
       }).toList(),
       onChanged: onChanged,
     );
-  }
+}
 
   Widget _passwordInput() {
     return TextFormField(
@@ -234,6 +228,7 @@ class _RegisterPageState extends State<RegisterPage>{
         filled: true,
         fillColor: Colors.white,
         hintText: '●●●●●●●●',
+        // prefixIcon: const Icon(Icons.lock_outline, size:20),
         suffixIcon: IconButton(
           icon: Icon(
               size: 20,
@@ -266,6 +261,7 @@ class _RegisterPageState extends State<RegisterPage>{
         fillColor: Colors.white,
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey.shade400),
+        // prefixIcon: Icon(icon, size: 20),
         contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
@@ -275,7 +271,7 @@ class _RegisterPageState extends State<RegisterPage>{
     );
   }
 
-  Widget _createAccountButton() {
+Widget _createAccountButton() {
     return SizedBox(
       width: double.infinity,
       height: 46,
@@ -286,91 +282,10 @@ class _RegisterPageState extends State<RegisterPage>{
             borderRadius: BorderRadius.circular(8),
           ),
         ),
-        onPressed: () async {
-          String name = nameController.text.trim();
-          String email = emailController.text.trim();
-          String password = passwordController.text.trim();
-
-          // Check required fields first
-          if (selectedRole == null) {
-            _showSnackBar("Please select a role");
-            return;
-          } else if (selectedInstitution == null) {
-            _showSnackBar("Please select an institution");
-            return;
-          } else if (selectedDistrict == null) {
-            _showSnackBar("Please select a district");
-            return;
-          } else if (selectedDivision == null) {
-            _showSnackBar("Please select a division");
-            return;
-          } else if (selectedRegion == null) {
-            _showSnackBar("Please select a region");
-            return;
-          } else if (name.isEmpty) {
-            _showSnackBar("Name is required");
-            return;
-          } else if (email.isEmpty) {
-            _showSnackBar("Email is required");
-            return;
-          } else if (password.isEmpty) {
-            _showSnackBar("Password is required");
-            return;
+        onPressed: (){
+          if (_formKey.currentState!.validate()){
+            // Logic here
           }
-
-          // Email validation
-          if (!RegExp(r'^[\w-\.]+@deped\.gov\.ph$').hasMatch(email)) {
-            _showSnackBar("Email must be valid and end with @deped.gov.ph");
-            return;
-          }
-
-          // Password validation
-          if (!RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@%^&*+#_])[A-Za-z\d@%^&*+#_]{8,}$')
-              .hasMatch(password)) {
-            _showSnackBar(
-                "Password must be at least 8 characters,\ninclude uppercase, lowercase, number, and symbol (@, %, ^, &, *, +, #, _)"
-            );
-            return;
-          }
-
-          final db = DatabaseService.instance;
-
-          // Save account
-          if (selectedRole == "Teacher") {
-            await db.createTeacher({
-              "teacher_name": name,
-              "class_id": null,
-              "email": email,
-              "password": password,
-              "school": selectedInstitution,
-              "district": selectedDistrict,
-              "division": selectedDivision,
-              "region": selectedRegion,
-              "status": "active",
-            });
-          } else if (selectedRole == "Admin") {
-            await db.createAdmin({
-              "admin_name": name,
-              "email": email,
-              "password": password,
-              "school": selectedInstitution,
-              "district": selectedDistrict,
-              "division": selectedDivision,
-              "region": selectedRegion,
-              "status": "active",
-            });
-          }
-
-          // Success snackbar
-          _showSnackBar("Account created successfully", isError: false);
-
-          // Navigate to login after short delay
-          Future.delayed(const Duration(seconds: 1), () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const LoginPage()),
-            );
-          });
         },
         child: const Text(
           'Create Account',
@@ -378,36 +293,12 @@ class _RegisterPageState extends State<RegisterPage>{
             fontSize: 15,
             color: Colors.white,
           ),
-        ),
+      ),
       ),
     );
-  }
+}
 
-  void _showSnackBar(String message, {bool isError = true}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-            GestureDetector(
-              onTap: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-              child: const Icon(Icons.close, color: Colors.white),
-            ),
-          ],
-        ),
-        backgroundColor: isError ? Colors.black : Colors.green[700],
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  Widget _form(){
+Widget _form(){
     return Form(
       key: _formKey,
       child: Column(
@@ -417,13 +308,12 @@ class _RegisterPageState extends State<RegisterPage>{
           // Role
           _label('Please choose an account to access the portal'),
           _dropdown(
-            hint: 'Choose an Account',
-            items: accountRole,
-            value: selectedRole,
-            onChanged: (v) => setState(() => selectedRole = v),
+              hint: 'Choose an Account',
+              items: accountRole,
+              value: selectedRole,
+              onChanged: (v) => setState(() => selectedRole = v),
           ),
-          const SizedBox(height:16),
-
+              const SizedBox(height:16),
           // Institution
           _label('Choose Institution:'),
           _dropdown(
@@ -432,11 +322,12 @@ class _RegisterPageState extends State<RegisterPage>{
             value: selectedInstitution,
             onChanged: (v) => setState(() => selectedInstitution = v),
           ),
-          const SizedBox(height:16),
+            const SizedBox(height:16),
 
           // District, Division, and Region
           LayoutBuilder(
             builder: (context, constraints) {
+              // MOBILE → stack vertically
               if (constraints.maxWidth < 500) {
                 return Column(
                   children: [
@@ -464,6 +355,7 @@ class _RegisterPageState extends State<RegisterPage>{
                 );
               }
 
+              // DESKTOP/TABLET → row
               return Row(
                 children: [
                   Expanded(
@@ -498,15 +390,6 @@ class _RegisterPageState extends State<RegisterPage>{
           ),
 
           const SizedBox(height:18),
-
-          // Name
-          _label('Your Name:'),
-          _input(
-            controller: nameController,
-            hint: 'Juan Dela Cruz',
-          ),
-          const SizedBox(height:18),
-
           // Email
           _label('Your Email:'),
           _input(
@@ -519,40 +402,43 @@ class _RegisterPageState extends State<RegisterPage>{
           _label('Set Password: '),
           _passwordInput(),
 
-          const SizedBox(height: 24),
+      const SizedBox(height: 24),
 
-          _createAccountButton(),
+      _createAccountButton(),
 
-          const SizedBox(height:16),
+      const SizedBox(height:16),
 
-          Center(
-            child: RichText(
-              text: TextSpan(
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
-                  fontSize: 13,
-                ),
-                children: [
-                  const TextSpan(text: 'Already have an account? '),
-                  TextSpan(
-                    text: 'Log in',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    recognizer: TapGestureRecognizer()..onTap = () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LoginPage()),
-                      );
-                    },
-                  ),
-                ],
-              ),
+      Center(
+        child: RichText(
+          text: TextSpan(
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.9),
+              fontSize: 13,
             ),
+            children: [
+              const TextSpan(text: 'Already have an account? '),
+              TextSpan(
+                text: 'Log in',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+                recognizer: TapGestureRecognizer()..onTap = () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginPage()),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
           ),
         ],
       ),
     );
-  }
+}
+
+
+
 }
