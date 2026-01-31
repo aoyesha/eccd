@@ -36,6 +36,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   get: ^4.6.6
   auto_size_text: ^3.0.0
+  sqflite: ^2.2.8+4
+  path: ^1.8.3
+  google_fonts: ^6.1.0
 
 
 dev_dependencies:
