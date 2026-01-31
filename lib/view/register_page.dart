@@ -3,6 +3,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../services/database_service.dart';
 import 'login_page.dart';
+import 'package:flutter/material.dart';
+
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({Key? key}) : super(key: key);
@@ -73,10 +75,10 @@ class _RegisterPageState extends State<RegisterPage> {
           Image.asset('assets/kids.png', width: 220),
           const SizedBox(height: 24),
           _title(),
-          const SizedBox(height: 40),
+          const SizedBox(height: 20),
           _formHeader(),
           Align(alignment: Alignment.centerLeft, child: _form()),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
         ],
       ),
     );
@@ -87,34 +89,47 @@ class _RegisterPageState extends State<RegisterPage> {
       child: SizedBox(
         width: 1100,
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+
             Expanded(
               flex: 5,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(left: 50),
-                    child: Image.asset('assets/kids.png', width: 400),
+                    child: Image.asset(
+                      'assets/kids.png',
+                      width: 400,
+                    ),
                   ),
                   const SizedBox(height: 22),
                   _title(),
                 ],
               ),
             ),
+
             const SizedBox(width: 30),
+
             Expanded(
               flex: 4,
-              child: SizedBox(
-                width: 420,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _formHeader(),
-                    const SizedBox(height: 20),
-                    _form(),
-                  ],
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 420,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _formHeader(),
+                        const SizedBox(height: 20),
+                        _form(),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -122,6 +137,7 @@ class _RegisterPageState extends State<RegisterPage> {
       ),
     );
   }
+
 
   Widget _title() {
     return const AutoSizeText(
@@ -143,7 +159,7 @@ class _RegisterPageState extends State<RegisterPage> {
       child: Text(
         "Create an Account",
         style: TextStyle(
-          fontSize: 23,
+          fontSize: 30,
           fontWeight: FontWeight.w700,
           color: Colors.white,
         ),
@@ -237,7 +253,9 @@ class _RegisterPageState extends State<RegisterPage> {
     return Form(
       key: _formKey,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+
           if (currentStep == 1) ...[
             _label('Please choose an account to access the portal'),
             _dropdown(
@@ -257,36 +275,68 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
             const SizedBox(height: 16),
 
-            Row(
-              children: [
-                Expanded(
-                  child: _dropdown(
-                    hint: 'District',
-                    items: district,
-                    value: selectedDistrict,
-                    onChanged: (v) => setState(() => selectedDistrict = v),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _dropdown(
-                    hint: 'Division',
-                    items: division,
-                    value: selectedDivision,
-                    onChanged: (v) => setState(() => selectedDivision = v),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _dropdown(
-                    hint: 'Region',
-                    items: region,
-                    value: selectedRegion,
-                    onChanged: (v) => setState(() => selectedRegion = v),
-                  ),
-                ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 500) {
+                  return Column(
+                    children: [
+                      _dropdown(
+                        hint: 'District',
+                        items: district,
+                        value: selectedDistrict,
+                        onChanged: (v) => setState(() => selectedDistrict = v),
+                      ),
+                      const SizedBox(height: 12),
+                      _dropdown(
+                        hint: 'Division',
+                        items: division,
+                        value: selectedDivision,
+                        onChanged: (v) => setState(() => selectedDivision = v),
+                      ),
+                      const SizedBox(height: 12),
+                      _dropdown(
+                        hint: 'Region',
+                        items: region,
+                        value: selectedRegion,
+                        onChanged: (v) => setState(() => selectedRegion = v),
+                      ),
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(
+                      child: _dropdown(
+                        hint: 'District',
+                        items: district,
+                        value: selectedDistrict,
+                        onChanged: (v) => setState(() => selectedDistrict = v),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _dropdown(
+                        hint: 'Division',
+                        items: division,
+                        value: selectedDivision,
+                        onChanged: (v) => setState(() => selectedDivision = v),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _dropdown(
+                        hint: 'Region',
+                        items: region,
+                        value: selectedRegion,
+                        onChanged: (v) => setState(() => selectedRegion = v),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
+
             const SizedBox(height: 24),
 
             _stepButton("Next", () {
@@ -317,34 +367,38 @@ class _RegisterPageState extends State<RegisterPage> {
 
             _createAccountButton(),
             const SizedBox(height: 12),
+
             _stepButton("Back", () => setState(() => currentStep = 1)),
           ],
 
           const SizedBox(height: 24),
 
-          RichText(
-            text: TextSpan(
-              style: TextStyle(color: Colors.white.withOpacity(0.9)),
-              children: [
-                const TextSpan(text: 'Already have an account? '),
-                TextSpan(
-                  text: 'Log in',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                  recognizer: TapGestureRecognizer()
-                    ..onTap = () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LoginPage()),
-                      );
-                    },
-                ),
-              ],
+          Center(
+            child: RichText(
+              text: TextSpan(
+                style: TextStyle(color: Colors.white.withOpacity(0.9)),
+                children: [
+                  const TextSpan(text: 'Already have an account? '),
+                  TextSpan(
+                    text: 'Log in',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => const LoginPage()),
+                        );
+                      },
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
     );
   }
+
 
   Widget _stepButton(String text, VoidCallback onPressed) {
     return SizedBox(
