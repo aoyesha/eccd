@@ -291,7 +291,7 @@ class _LoginPageState extends State<LoginPage> {
           } else if (!credentialsValid) {
             _showErrorSnackBar("Invalid credentials");
           } else {
-              Get.off(() => LandingPage(role: role));
+              Get.off(() => LandingPage(role: "Teacher"));
           }
         },
         child: const Text('Log in', style: TextStyle(fontSize: 15, color: Colors.white)),

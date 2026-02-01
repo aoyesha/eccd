@@ -89,7 +89,7 @@ class LandingPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            "Early Childhood Development Checklist",
+            "Early Childhood \nDevelopment Checklist",
             maxLines: 2,
             style: TextStyle(fontSize: 38,
                 fontWeight: FontWeight.bold,

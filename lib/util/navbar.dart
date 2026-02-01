@@ -1,3 +1,6 @@
+import 'package:eccd/view/archive_page.dart';
+import 'package:eccd/view/historical_data_page.dart';
+import 'package:eccd/view/my_summary_page.dart';
 import 'package:flutter/material.dart';
 
 import '../view/landing_page.dart';
@@ -34,8 +37,7 @@ class Navbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final isMobile = width < 700;
+    final isMobile = MediaQuery.of(context).size.width < 700;
 
     if (isMobile) {
       return Drawer(
@@ -69,38 +71,59 @@ class Navbar extends StatelessWidget {
 
               return ListTile(
                 leading: Icon(item.icon, color: Colors.white),
-                title: Text(item.label, style: const TextStyle(color: Colors.white)),
+                title: Text(
+                  item.label,
+                  style: const TextStyle(color: Colors.white),
+                ),
                 selected: index == selectedIndex,
                 selectedTileColor: const Color(0xFF6F151A),
-
                 onTap: () {
                   onItemSelected(index);
 
                   if (MediaQuery.of(context).size.width < 700) {
-                    Navigator.pop(context); // close drawer on mobile
+                    Navigator.pop(context);
                   }
-
 
                   switch (index) {
                     case 0:
-                    Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => LandingPage(role: "Teacher")));
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const LandingPage(role: "Teacher"),
+                        ),
+                      );
                       break;
                     case 1:
-                    Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => CreateNewClassPage()));
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CreateNewClassPage(),
+                        ),
+                      );
                       break;
                     case 2:
-                    // Navigator.push(context,
-                    //   MaterialPageRoute(builder: (_) => MySummaryPage()));
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SummaryPage(),
+                        ),
+                      );
                       break;
                     case 3:
-                    // Navigator.push(context,
-                    //   MaterialPageRoute(builder: (_) => MyArchivePage()));
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ArchivePage(),
+                        ),
+                      );
                       break;
                     case 4:
-                    // Navigator.push(context,
-                    //   MaterialPageRoute(builder: (_) => HistoricalAnalysisPage()));
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const HistoricalDataPage(),
+                        ),
+                      );
                       break;
                   }
                 },
@@ -117,11 +140,15 @@ class Navbar extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
               ),
               onPressed: () {
-                Navigator.pushReplacement(context,
-                MaterialPageRoute(builder: (_) => LoginPage()));
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                );
               },
               icon: const Icon(Icons.logout),
               label: const Text('Log out'),
