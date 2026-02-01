@@ -5,8 +5,7 @@ import 'package:get/get.dart';
 
 import 'register_page.dart';
 import '../services/database_service.dart';
-import 'teacher_landing_page.dart';
-import 'admin_landing_page.dart';
+import 'landing_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -292,12 +291,7 @@ class _LoginPageState extends State<LoginPage> {
           } else if (!credentialsValid) {
             _showErrorSnackBar("Invalid credentials");
           } else {
-            // Navigate to landing page depending on role
-            if (role == 'Teacher') {
-              Get.off(() => TeacherLandingPage(user: user));
-            } else {
-              Get.off(() => AdminLandingPage(user: user));
-            }
+              Get.off(() => LandingPage(role: role));
           }
         },
         child: const Text('Log in', style: TextStyle(fontSize: 15, color: Colors.white)),

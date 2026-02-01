@@ -1,4 +1,6 @@
+import 'package:eccd/view/landing_page.dart';
 import 'package:eccd/view/register_page.dart';
+import 'package:eccd/view/teacher_new_data_source.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:eccd/view/login_page.dart';
@@ -20,7 +22,7 @@ class MyApp extends StatelessWidget {
       ),
       debugShowCheckedModeBanner: false,
       title: 'ECD Checklist',
-      home: const LoginPage(),
+      home: const CreateNewClassPage(),
     );
   }
 }
