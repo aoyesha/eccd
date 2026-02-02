@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:eccd/util/navbar.dart';
-import '../util/domain.dart';
+import 'package:eccd/util/domain.dart';
+import 'package:eccd/data/eccd_questions.dart';
 
 class TeacherChecklistPage extends StatefulWidget {
   const TeacherChecklistPage({Key? key}) : super(key: key);
@@ -17,24 +18,17 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
 
   final TextEditingController _dateController = TextEditingController();
 
-  final List<String> domains = [
-    'Gross Motor',
-    'Fine Motor',
-    'Self Help',
-    'Dressing',
-    'Toilet',
-    'Receptive Language',
-    'Expressive Language',
-    'Cognitive',
-    'Social Emotional',
-  ];
-
+  final List<String> domains = EccdQuestions.domains;
   final Map<String, bool> yesValues = {};
   final Map<String, bool> noValues = {};
+  final Map<String, TextEditingController> commentControllers = {};
 
   @override
   void dispose() {
     _dateController.dispose();
+    for (final c in commentControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -64,12 +58,17 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     return Row(
       children: [
         Navbar(selectedIndex: 0, onItemSelected: (_) {}),
-        Expanded(child: SingleChildScrollView(child: _content(isMobile: false))),
+        Expanded(
+          child: SingleChildScrollView(child: _content(isMobile: false)),
+        ),
       ],
     );
   }
 
   Widget _content({required bool isMobile}) {
+    final lang = EccdQuestions.fromLabel(selectedLanguage);
+    final questions = EccdQuestions.get(selectedDomain, lang);
+
     return Padding(
       padding: EdgeInsets.all(isMobile ? 12 : 24),
       child: Column(
@@ -79,6 +78,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
           const SizedBox(height: 8),
           _headerRow(isMobile),
           const SizedBox(height: 12),
+
           DomainDropdown(
             domains: domains,
             onChanged: (value) {
@@ -87,8 +87,30 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
               });
             },
           ),
-          const SizedBox(height: 12),
-          ...domains.map((d) => _domainSection(d, isMobile)).toList(),
+
+          const SizedBox(height: 14),
+          _domainTitleAndProgress(selectedDomain),
+
+          const SizedBox(height: 10),
+
+          // questions
+          ...List.generate(questions.length, (i) {
+            final qText = questions[i];
+            final qNumber = i + 1;
+            final key = "$selectedDomain-$qNumber";
+
+            yesValues.putIfAbsent(key, () => false);
+            noValues.putIfAbsent(key, () => false);
+            commentControllers.putIfAbsent(key, () => TextEditingController());
+
+            return _questionRow(
+              number: qNumber,
+              text: qText,
+              keyId: key,
+              isMobile: isMobile,
+            );
+          }),
+
           const SizedBox(height: 16),
           Align(
             alignment: Alignment.centerRight,
@@ -102,7 +124,8 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                onPressed: () {},
+                onPressed: () {
+                },
                 child: const Text(
                   "Save",
                   style: TextStyle(color: Colors.white, fontSize: 12),
@@ -177,8 +200,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
               child: DropdownButtonFormField<String>(
                 value: selectedLanguage,
                 items: ["English", "Tagalog"]
-                    .map((e) =>
-                    DropdownMenuItem(value: e, child: Text(e)))
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                     .toList(),
                 onChanged: (v) => setState(() => selectedLanguage = v!),
                 decoration: _decoration("Language"),
@@ -224,70 +246,114 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     );
   }
 
-  Widget _domainSection(String domain, bool isMobile) {
-    yesValues.putIfAbsent(domain, () => false);
-    noValues.putIfAbsent(domain, () => false);
+  Widget _domainTitleAndProgress(String domain) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            domain,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+        ),
+        Expanded(
+          child: LinearProgressIndicator(
+            value: 0,
+            minHeight: 6,
+            color: Colors.green,
+            backgroundColor: Colors.grey.shade300,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _questionRow({
+    required int number,
+    required String text,
+    required String keyId,
+    required bool isMobile,
+  }) {
+    final yes = yesValues[keyId] ?? false;
+    final no = noValues[keyId] ?? false;
+    final comment = commentControllers[keyId]!;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
+
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
+            SizedBox(
+              width: 26,
               child: Text(
-                domain,
-                style:
-                const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                "$number.",
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
               ),
             ),
             Expanded(
-              child: LinearProgressIndicator(
-                value: 0,
-                minHeight: 6,
-                color: Colors.green,
-                backgroundColor: Colors.grey.shade300,
+              child: Text(
+                text,
+                style: const TextStyle(fontSize: 12),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
+
+        const SizedBox(height: 6),
+
         Row(
           children: [
             Checkbox(
               visualDensity: VisualDensity.compact,
-              value: yesValues[domain],
+              value: yes,
               onChanged: (v) {
                 setState(() {
-                  yesValues[domain] = v!;
-                  if (v) noValues[domain] = false;
+                  yesValues[keyId] = v ?? false;
+                  if (v == true) noValues[keyId] = false;
                 });
               },
             ),
             const Text("YES", style: TextStyle(fontSize: 11)),
+            const SizedBox(width: 6),
             Checkbox(
               visualDensity: VisualDensity.compact,
-              value: noValues[domain],
+              value: no,
               onChanged: (v) {
                 setState(() {
-                  noValues[domain] = v!;
-                  if (v) yesValues[domain] = false;
+                  noValues[keyId] = v ?? false;
+                  if (v == true) yesValues[keyId] = false;
                 });
               },
             ),
             const Text("NO", style: TextStyle(fontSize: 11)),
-            const SizedBox(width: 6),
+            const SizedBox(width: 10),
+
             Expanded(
-              child: Container(
-                height: 28,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(6),
+              child: SizedBox(
+                height: 30,
+                child: TextField(
+                  controller: comment,
+                  decoration: InputDecoration(
+                    hintText: "Questions",
+                    hintStyle: const TextStyle(fontSize: 11, color: Colors.grey),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                  ),
                 ),
               ),
             ),
           ],
         ),
+
         const Divider(),
       ],
     );
@@ -317,8 +383,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     if (picked != null) {
       setState(() {
         selectedDate = picked;
-        _dateController.text =
-        "${picked.month}/${picked.day}/${picked.year}";
+        _dateController.text = "${picked.month}/${picked.day}/${picked.year}";
       });
     }
   }
