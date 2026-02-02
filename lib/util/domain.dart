@@ -17,6 +17,7 @@ class _DomainDropdownState extends State<DomainDropdown> {
   String? selectedDomain;
 
   final List<String> domain = [
+    'All',
     'Gross Motor',
     'Fine Motor',
     'Self Help',

@@ -18,79 +18,55 @@ class ClassListPage extends StatefulWidget {
   State<ClassListPage> createState() => _ClassListPageState();
 }
 
-class _ClassListPageState extends State<ClassListPage>{
+class _ClassListPageState extends State<ClassListPage> {
   List<Map<String, dynamic>> students = [
-    {
-      "name": "Cruz, Adrain M", "active" : true
-    },
+    {"name": "Cruz, Adrain M", "active": true},
   ];
 
-  /*
-   List <Map<String, dynamic>> students = [
-    {
-    "student_id" : "",
-    "firstName" : "",
-    "middleName" : "",
-    "lastName": "",
-     "active":true,
-    }
-   */
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
     return Scaffold(
       drawer: MediaQuery.of(context).size.width < 700
-          ? Navbar(
-        selectedIndex: 0,
-        onItemSelected: (_){},
-      )
-          :null,
+          ? Navbar(selectedIndex: 0, onItemSelected: (_) {})
+          : null,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isMobile = constraints.maxWidth < 700;
           return Row(
             children: [
               if (!isMobile)
-                Navbar(
-                  selectedIndex: 0,
-                  onItemSelected: (_){},
-                ),
+                Navbar(selectedIndex: 0, onItemSelected: (_) {}),
               Expanded(
-                child:
-                  isMobile ? _mobileLayout()
-                      : _desktopLayout(),
+                child: isMobile ? _mobileLayout() : _desktopLayout(),
               ),
             ],
           );
-        }
+        },
       ),
     );
   }
+
   Widget _mobileLayout() {
     return SingleChildScrollView(
-        child: Column(
-          children: [
-            _classContent(),
-            _rightPanel(),
-          ],
-        ),
+      child: Column(
+        children: [
+          _classContent(),
+          _rightPanel(),
+        ],
+      ),
     );
   }
 
-  Widget _desktopLayout(){
+  Widget _desktopLayout() {
     return Row(
       children: [
-        Expanded(
-          flex: 5,
-          child: _classContent()
-        ),
-        Expanded(
-          flex: 3,
-          child: _rightPanel()
-        ),
+        Expanded(flex: 5, child: _classContent()),
+        Expanded(flex: 3, child: _rightPanel()),
       ],
     );
   }
-Widget _classContent() {
+
+  Widget _classContent() {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -98,11 +74,7 @@ Widget _classContent() {
         children: [
           Text(
             "${widget.gradeLevel} ${widget.section}",
-            style:
-              const TextStyle(
-                fontSize: 36,
-                fontWeight: FontWeight.bold
-              ),
+            style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
 
@@ -122,11 +94,10 @@ Widget _classContent() {
           const SizedBox(height: 16),
 
           Column(
-            children:
-              students.map((s) => _studentTile(s)).toList(),
+            children: students.map((s) => _studentTile(s)).toList(),
           ),
 
-          const SizedBox(height:16),
+          const SizedBox(height: 16),
 
           SizedBox(
             width: double.infinity,
@@ -141,80 +112,72 @@ Widget _classContent() {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const TeacherAddProfilePage())
+                  MaterialPageRoute(builder: (_) => const TeacherAddProfilePage()),
                 );
               },
-              child: const Text(
-                "Add Student",
-                style: TextStyle(color: Colors.white),
-            ),
+              child: const Text("Add Student", style: TextStyle(color: Colors.white)),
             ),
           ),
         ],
       ),
     );
-}
-Widget _studentTile(Map<String,dynamic> student) {
-    return Container(
-      margin: const EdgeInsets.only(bottom:10),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      decoration: BoxDecoration(
-        color: student["active"]? Colors.white : Colors.grey.shade300,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: (){
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const TeacherChecklistPage()),
-                );
-              },
-              child: Text(
-              student["name"],
-              style: const TextStyle(
-                fontSize: 14
-              ),
-    ),
+  }
+
+  Widget _studentTile(Map<String, dynamic> student) {
+    return Material(
+      color: student["active"] ? Colors.white : Colors.grey.shade300,
+      borderRadius: BorderRadius.circular(10),
+      child: ListTile(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        title: Text(student["name"], style: const TextStyle(fontSize: 14)),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const TeacherChecklistPage()),
+          );
+        },
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.circle,
+              size: 12,
+              color: student["active"] ? Colors.green : Colors.transparent,
             ),
-          ),
-  Icon(
-    Icons.circle,
-    size: 12,
-    color: student["active"] ? Colors.green : Colors.transparent,
-  ),
-          const SizedBox(width: 6),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              setState(() {
-                student["active"] = value == "activate";
-              });
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(
-                value: "activate",
-                child: Text("Activate"),
-              ),
-              PopupMenuItem(
-                value: "deactivate",
-                child: Text("Deactivate"),
-              ),
-            ],
-            icon: const Icon(Icons.menu),
-          ),
-        ],
+            const SizedBox(width: 6),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              onSelected: (value) {
+                setState(() {
+                  student["active"] = value == "activate";
+                });
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: "activate",
+                  child: Text("Activate"),
+                ),
+                PopupMenuItem(
+                  value: "deactivate",
+                  child: Text("Deactivate"),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
-}
-Widget _rightPanel() {
+  }
+
+  Widget _rightPanel() {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
           _statusCard(),
-          const SizedBox (height: 16),
+          const SizedBox(height: 16),
           _chartCard(),
           const SizedBox(height: 16),
           SizedBox(
@@ -227,91 +190,67 @@ Widget _rightPanel() {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              onPressed: (){
+              onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder:(_) => TeacherClassReportPage(gradeLevel: widget.gradeLevel, section: widget.section),
+                  MaterialPageRoute(
+                    builder: (_) => TeacherClassReportPage(
+                      gradeLevel: widget.gradeLevel,
+                      section: widget.section,
+                    ),
                   ),
                 );
               },
-              child: const Text(
-                "Class Report",
-                style: TextStyle(
-                  color: Colors.white
-                ),
-              ),
+              child: const Text("Class Report", style: TextStyle(color: Colors.white)),
             ),
           ),
         ],
       ),
     );
-}
+  }
 
-Widget _statusCard() {
+  Widget _statusCard() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 6),
-        ],
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
       ),
       child: Column(
         children: [
           const Align(
             alignment: Alignment.centerLeft,
-            child: Text("Status", style: TextStyle(
-              fontWeight: FontWeight.bold
-            )),
+            child: Text("Status", style: TextStyle(fontWeight: FontWeight.bold)),
           ),
           const SizedBox(height: 16),
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              SizedBox(
-                width: 140,
-                height: 140,
-                child: CircularProgressIndicator(
-                  value: 0,
-                  strokeWidth: 14,
-                  color: const Color(0xFF4A1511),
-                  backgroundColor: Colors.grey.shade300,
-                ),
-              ),
-              const Text(
-                "",
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold
-                ),
-              ),
-            ],
+          SizedBox(
+            width: 140,
+            height: 140,
+            child: CircularProgressIndicator(
+              value: 0,
+              strokeWidth: 14,
+              color: const Color(0xFF4A1511),
+              backgroundColor: Colors.grey.shade300,
+            ),
           ),
         ],
-      )
+      ),
     );
-}
-Widget _chartCard() {
+  }
+
+  Widget _chartCard() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12,
-          blurRadius: 6),
-        ],
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Class Chart",
-            style: TextStyle(
-              fontWeight: FontWeight.bold
-            )
-          ),
+          const Text("Class Chart", style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           SizedBox(
             height: 180,
@@ -325,8 +264,9 @@ Widget _chartCard() {
         ],
       ),
     );
-}
-Widget _bar(double height){
+  }
+
+  Widget _bar(double height) {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4),

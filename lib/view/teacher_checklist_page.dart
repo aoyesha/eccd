@@ -13,22 +13,17 @@ class TeacherChecklistPage extends StatefulWidget {
 class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
   String selectedLanguage = "English";
   String selectedAssessment = "Pre-Test";
-  String selectedDomain = "Gross Motor";
+  String? selectedDomain;
   DateTime? selectedDate;
 
   final TextEditingController _dateController = TextEditingController();
-
   final List<String> domains = EccdQuestions.domains;
   final Map<String, bool> yesValues = {};
   final Map<String, bool> noValues = {};
-  final Map<String, TextEditingController> commentControllers = {};
 
   @override
   void dispose() {
     _dateController.dispose();
-    for (final c in commentControllers.values) {
-      c.dispose();
-    }
     super.dispose();
   }
 
@@ -58,65 +53,73 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     return Row(
       children: [
         Navbar(selectedIndex: 0, onItemSelected: (_) {}),
-        Expanded(
-          child: SingleChildScrollView(child: _content(isMobile: false)),
-        ),
+        Expanded(child: SingleChildScrollView(child: _content(isMobile: false))),
       ],
     );
   }
 
   Widget _content({required bool isMobile}) {
     final lang = EccdQuestions.fromLabel(selectedLanguage);
-    final questions = EccdQuestions.get(selectedDomain, lang);
+    final visibleDomains =
+    selectedDomain == null ? domains : [selectedDomain!];
 
     return Padding(
-      padding: EdgeInsets.all(isMobile ? 12 : 24),
+      padding: EdgeInsets.all(isMobile ? 12 : 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _assessmentRow(isMobile),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           _headerRow(isMobile),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
           DomainDropdown(
-            domains: domains,
+            domains: ["All Domains", ...domains],
             onChanged: (value) {
               setState(() {
-                selectedDomain = value ?? selectedDomain;
+                if (value == "All Domains") {
+                  selectedDomain = null;
+                } else {
+                  selectedDomain = value;
+                }
               });
             },
           ),
 
-          const SizedBox(height: 14),
-          _domainTitleAndProgress(selectedDomain),
+          const SizedBox(height: 20),
 
-          const SizedBox(height: 10),
+          ...visibleDomains.map((domain) {
+            final questions = EccdQuestions.get(domain, lang);
 
-          // questions
-          ...List.generate(questions.length, (i) {
-            final qText = questions[i];
-            final qNumber = i + 1;
-            final key = "$selectedDomain-$qNumber";
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _domainTitleAndProgress(domain, isMobile),
+                const SizedBox(height: 10),
 
-            yesValues.putIfAbsent(key, () => false);
-            noValues.putIfAbsent(key, () => false);
-            commentControllers.putIfAbsent(key, () => TextEditingController());
+                ...List.generate(questions.length, (i) {
+                  final key = "$domain-$i";
+                  yesValues.putIfAbsent(key, () => false);
+                  noValues.putIfAbsent(key, () => false);
 
-            return _questionRow(
-              number: qNumber,
-              text: qText,
-              keyId: key,
-              isMobile: isMobile,
+                  return _questionRow(
+                    number: i + 1,
+                    question: questions[i],
+                    keyId: key,
+                    isMobile: isMobile,
+                  );
+                }),
+
+                const SizedBox(height: 20),
+              ],
             );
           }),
 
-          const SizedBox(height: 16),
           Align(
             alignment: Alignment.centerRight,
             child: SizedBox(
-              width: 110,
-              height: 36,
+              width: 130,
+              height: 40,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFE64843),
@@ -124,11 +127,11 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                onPressed: () {
-                },
-                child: const Text(
+                onPressed: () {},
+                child: Text(
                   "Save",
-                  style: TextStyle(color: Colors.white, fontSize: 12),
+                  style:
+                  TextStyle(color: Colors.white, fontSize: isMobile ? 12 : 14),
                 ),
               ),
             ),
@@ -140,7 +143,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
 
   Widget _assessmentRow(bool isMobile) {
     return SizedBox(
-      width: isMobile ? double.infinity : 260,
+      width: isMobile ? double.infinity : 320,
       child: DropdownButtonFormField<String>(
         value: selectedAssessment,
         items: ["Pre-Test", "Post-Test"]
@@ -153,16 +156,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
   }
 
   Widget _headerRow(bool isMobile) {
-    return isMobile
-        ? Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _studentInfo(isMobile),
-        const SizedBox(height: 8),
-        _headerControls(isMobile),
-      ],
-    )
-        : Row(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(child: _studentInfo(isMobile)),
@@ -177,26 +171,27 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         SizedBox(
-          height: 32,
+          height: isMobile ? 32 : 40,
           child: ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFE64843),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(3),
               ),
             ),
             onPressed: () {},
-            child: const Text(
+            child: Text(
               "Export Summary",
-              style: TextStyle(color: Colors.white, fontSize: 11),
+              style:
+              TextStyle(color: Colors.white, fontSize: isMobile ? 11 : 13),
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Row(
           children: [
             SizedBox(
-              width: 130,
+              width: isMobile ? 130 : 170,
               child: DropdownButtonFormField<String>(
                 value: selectedLanguage,
                 items: ["English", "Tagalog"]
@@ -208,7 +203,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
             ),
             const SizedBox(width: 8),
             SizedBox(
-              width: 150,
+              width: isMobile ? 150 : 200,
               child: TextField(
                 controller: _dateController,
                 readOnly: true,
@@ -226,42 +221,35 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "Cruz, Adrian M",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              fontSize: isMobile ? 16 : 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 2),
-        const Text(
+        Text(
           "Date of Birth: June 29, 2020, Age: 5",
-          style: TextStyle(fontSize: 11, color: Colors.grey),
+          style: TextStyle(
+              fontSize: isMobile ? 11 : 13, color: Colors.grey),
         ),
-        const SizedBox(height: 4),
-        LinearProgressIndicator(
-          value: 0.8,
-          minHeight: 6,
-          color: Colors.green,
-          backgroundColor: Colors.grey.shade300,
-        ),
+        const SizedBox(height: 6),
+        LinearProgressIndicator(value: 0.8, minHeight: isMobile ? 6 : 8),
       ],
     );
   }
 
-  Widget _domainTitleAndProgress(String domain) {
+  Widget _domainTitleAndProgress(String domain, bool isMobile) {
     return Row(
       children: [
         Expanded(
           child: Text(
             domain,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            style: TextStyle(
+                fontSize: isMobile ? 14 : 20, fontWeight: FontWeight.bold),
           ),
         ),
         Expanded(
-          child: LinearProgressIndicator(
-            value: 0,
-            minHeight: 6,
-            color: Colors.green,
-            backgroundColor: Colors.grey.shade300,
-          ),
+          child: LinearProgressIndicator(value: 0, minHeight: isMobile ? 6 : 8),
         ),
       ],
     );
@@ -269,40 +257,16 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
 
   Widget _questionRow({
     required int number,
-    required String text,
+    required String question,
     required String keyId,
     required bool isMobile,
   }) {
     final yes = yesValues[keyId] ?? false;
     final no = noValues[keyId] ?? false;
-    final comment = commentControllers[keyId]!;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 10),
-
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 26,
-              child: Text(
-                "$number.",
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-            ),
-            Expanded(
-              child: Text(
-                text,
-                style: const TextStyle(fontSize: 12),
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 6),
-
         Row(
           children: [
             Checkbox(
@@ -315,7 +279,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
                 });
               },
             ),
-            const Text("YES", style: TextStyle(fontSize: 11)),
+            Text("YES", style: TextStyle(fontSize: isMobile ? 11 : 13)),
             const SizedBox(width: 6),
             Checkbox(
               visualDensity: VisualDensity.compact,
@@ -327,33 +291,27 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
                 });
               },
             ),
-            const Text("NO", style: TextStyle(fontSize: 11)),
+            Text("NO", style: TextStyle(fontSize: isMobile ? 11 : 13)),
             const SizedBox(width: 10),
-
             Expanded(
-              child: SizedBox(
-                height: 30,
-                child: TextField(
-                  controller: comment,
-                  decoration: InputDecoration(
-                    hintText: "Questions",
-                    hintStyle: const TextStyle(fontSize: 11, color: Colors.grey),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
+              child: Container(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  "$number. $question",
+                  style: TextStyle(
+                    fontSize: isMobile ? 11 : 16,
+                    color: Colors.black87,
                   ),
                 ),
               ),
             ),
           ],
         ),
-
         const Divider(),
       ],
     );
@@ -366,10 +324,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
       filled: true,
       fillColor: Colors.white,
       isDense: true,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(6),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
     );
   }
 
@@ -383,7 +338,8 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     if (picked != null) {
       setState(() {
         selectedDate = picked;
-        _dateController.text = "${picked.month}/${picked.day}/${picked.year}";
+        _dateController.text =
+        "${picked.month}/${picked.day}/${picked.year}";
       });
     }
   }
