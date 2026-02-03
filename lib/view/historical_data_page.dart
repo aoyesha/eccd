@@ -66,48 +66,40 @@ class HistoricalDataPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Text(
+                "Early Childhood \nDevelopment Checklist",
+                maxLines: 2,
+                style: TextStyle(fontSize: 38, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              const Divider(),
+              const SizedBox(height: 16),
+
               isMobile
-                  ? Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                  ? Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Expanded(
-                    child: Text(
-                      "Early Childhood\nDevelopment Checklist",
-                      style: TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _topButton("Import", true),
-                          const SizedBox(width: 6),
-                          _topButton("Export", true),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _yearField("Start Year", true),
-                          const SizedBox(width: 6),
-                          _yearField("End Year", true),
-                        ],
-                      ),
+                      _topButton("Import", true),
+                      const SizedBox(width: 6),
+                      _topButton("Export", true),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _yearField("Start Year", true),
+                      const SizedBox(width: 6),
+                      _yearField("End Year", true),
                     ],
                   ),
                 ],
               )
                   : Row(
                 children: [
-                  const Text(
-                    "Early Childhood\nDevelopment Checklist",
-                    style: TextStyle(
-                        fontSize: 30, fontWeight: FontWeight.bold),
-                  ),
                   const Spacer(),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -131,10 +123,11 @@ class HistoricalDataPage extends StatelessWidget {
                   ),
                 ],
               ),
+
               const SizedBox(height: 20),
               const Text(
                 "Most Learned Skills",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               SingleChildScrollView(
@@ -151,7 +144,7 @@ class HistoricalDataPage extends StatelessWidget {
               const SizedBox(height: 24),
               const Text(
                 "Least Mastered Skills",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               SingleChildScrollView(
@@ -218,8 +211,9 @@ class HistoricalDataPage extends StatelessWidget {
 
   Widget _tableHeader(List<String> headers) {
     return Row(
-      children:
-      headers.map((h) => _cell(h, width: 180, isHeader: true)).toList(),
+      children: headers
+          .map((h) => _cell(h, width: 180, isHeader: true))
+          .toList(),
     );
   }
 
@@ -242,7 +236,7 @@ class HistoricalDataPage extends StatelessWidget {
         text,
         textAlign: TextAlign.center,
         style: TextStyle(
-          fontSize: 11,
+          fontSize: 14,
           fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
         ),
       ),

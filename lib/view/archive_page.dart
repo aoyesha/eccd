@@ -31,11 +31,7 @@ class _ArchivePageState extends State<ArchivePage> {
   }
 
   Widget _mobileLayout() {
-    return SafeArea(
-      child: SingleChildScrollView(
-        child: _content(isMobile: true),
-      ),
-    );
+    return SingleChildScrollView(child: _content(isMobile: true));
   }
 
   Widget _desktopLayout() {
@@ -43,11 +39,7 @@ class _ArchivePageState extends State<ArchivePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Navbar(selectedIndex: 0, onItemSelected: (_) {}, teacherId: widget.teacherId),
-        Expanded(
-          child: SingleChildScrollView(
-            child: _content(isMobile: false),
-          ),
-        ),
+        Expanded(child: SingleChildScrollView(child: _content(isMobile: false))),
       ],
     );
   }
@@ -60,71 +52,69 @@ class _ArchivePageState extends State<ArchivePage> {
 
         return Padding(
           padding: EdgeInsets.fromLTRB(
-            isMobile ? 16 : 32,
-            isMobile ? 16 : 28,
-            isMobile ? 16 : 32,
-            isMobile ? 18 : 28,
+            isMobile ? 16 : 24,
+            isMobile ? 12 : 12,
+            isMobile ? 16 : 24,
+            isMobile ? 24 : 24,
           ),
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Early Childhood\nDevelopment Checklist",
-                  style: TextStyle(
-                    fontSize: isMobile ? 22 : 30,
-                    fontWeight: FontWeight.bold,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Early Childhood \nDevelopment Checklist",
+                maxLines: 2,
+                style: TextStyle(fontSize: 38, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              const Divider(),
+              const SizedBox(height: 12),
+
+              isMobile
+                  ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _archiveTitle(isMobile),
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: _yearControls(isMobile),
                   ),
-                ),
-                const SizedBox(height: 12),
+                ],
+              )
+                  : Row(
+                children: [
+                  _archiveTitle(isMobile),
+                  const Spacer(),
+                  _yearControls(isMobile),
+                ],
+              ),
 
-                isMobile
-                    ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _archiveTitle(isMobile),
-                    const SizedBox(height: 10),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: _yearControls(isMobile),
-                    ),
-                  ],
-                )
-                    : Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _archiveTitle(isMobile),
-                    const Spacer(),
-                    _yearControls(isMobile),
-                  ],
-                ),
+              const SizedBox(height: 16),
 
-                const SizedBox(height: 16),
-
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: isMobile ? 2 : 5,
-                    crossAxisSpacing: isMobile ? 12 : 16,
-                    mainAxisSpacing: isMobile ? 12 : 16,
-                    childAspectRatio: isMobile ? 140 / 200 : 140 / 175,
-                  ),
-                  itemCount: data.length,
-                  itemBuilder: (context, index) {
-                    final item = data[index];
-                    return DataSourceTile(
-                      section: item["section"] ?? "",
-                      schoolYear: item["year"] ?? "",
-                      color: const Color(0xFFF2F2F2),
-                      onActivate: () {},
-                      onDeactivate: () {},
-                    );
-                  },
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: isMobile ? 2 : 5,
+                  crossAxisSpacing: isMobile ? 12 : 16,
+                  mainAxisSpacing: isMobile ? 12 : 16,
+                  childAspectRatio: isMobile ? 140 / 200 : 140 / 175,
                 ),
-              ],
-            ),
+                itemCount: data.length,
+                itemBuilder: (context, index) {
+                  final item = data[index];
+                  return DataSourceTile(
+                    section: item["section"] ?? "",
+                    schoolYear: item["year"] ?? "",
+                    level: "",
+                    color: const Color(0xFFF2F2F2),
+                    onTap: () {},
+                    onActivate: () {},
+                    onDeactivate: () {},
+                  );
+                },
+              ),
+            ],
           ),
         );
       },
@@ -158,13 +148,9 @@ class _ArchivePageState extends State<ArchivePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text(
-          "Select School Year",
-          style: TextStyle(fontSize: isMobile ? 11 : 12),
-        ),
+        Text("Select School Year", style: TextStyle(fontSize: isMobile ? 11 : 12)),
         const SizedBox(height: 6),
         Row(
-          mainAxisAlignment: MainAxisAlignment.end,
           children: [
             _yearField("Start Year", isMobile),
             const SizedBox(width: 8),
@@ -186,7 +172,7 @@ class _ArchivePageState extends State<ArchivePage> {
           hintStyle: TextStyle(fontSize: isMobile ? 11 : 12),
           filled: true,
           fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 10),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(6),
             borderSide: BorderSide(color: Colors.grey.shade300),

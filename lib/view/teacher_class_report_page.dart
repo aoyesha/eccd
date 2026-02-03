@@ -178,7 +178,7 @@ class TeacherClassReportPage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
               ),
               padding:
-              EdgeInsets.symmetric(horizontal: isMobile ? 6 : 12),
+              EdgeInsets.symmetric(horizontal: isMobile ? 6 : 15),
             ),
             onPressed: () {
               Navigator.push(
@@ -195,7 +195,7 @@ class TeacherClassReportPage extends StatelessWidget {
               "View",
               style: TextStyle(
                 color: Colors.white,
-                fontSize: isMobile ? 9 : 11,
+                fontSize: isMobile ? 9 : 15,
               ),
             ),
           ),

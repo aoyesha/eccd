@@ -32,86 +32,82 @@ class SummaryPage extends StatelessWidget {
       drawer: MediaQuery.of(context).size.width < 700
           ? Navbar(selectedIndex: 0, onItemSelected: (_) {}, teacherId: teacherId)
           : null,
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return constraints.maxWidth > 700
-                ? _desktopLayout()
-                : _mobileLayout();
-          },
-        ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return constraints.maxWidth > 700
+              ? _desktopLayout()
+              : _mobileLayout();
+        },
       ),
     );
   }
 
   Widget _mobileLayout() {
-    return SingleChildScrollView(
-      child: _content(maxWidth: 900),
-    );
+    return SingleChildScrollView(child: _content());
   }
 
   Widget _desktopLayout() {
     return Row(
       children: [
         Navbar(selectedIndex: 0, onItemSelected: (_) {}, teacherId: teacherId),
-        Expanded(
-          child: SingleChildScrollView(
-            child: _content(maxWidth: 1200),
-          ),
-        ),
+        Expanded(child: SingleChildScrollView(child: _content())),
       ],
     );
   }
 
-  Widget _content({required double maxWidth}) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _content() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Early Childhood \nDevelopment Checklist",
+            maxLines: 2,
+            style: TextStyle(fontSize: 38, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          const Divider(),
+          const SizedBox(height: 8),
+
+          Row(
             children: [
-              Row(
-                children: [
-                  const Text(
-                    "Teacher’s Summary",
-                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-                  ),
-                  const Spacer(),
-                  SizedBox(
-                    height: 36,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE64843),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      onPressed: () {},
-                      child: const Text(
-                        "Export",
-                        style: TextStyle(color: Colors.white),
-                      ),
+              const Text(
+                "Teacher’s Summary",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const Spacer(),
+              SizedBox(
+                height: 36,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE64843),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Column(
-                  children: [
-                    _tableHeader(),
-                    ...levels.map((e) => _dataRow(e)).toList(),
-                  ],
+                  onPressed: () {},
+                  child: const Text(
+                    "Export",
+                    style: TextStyle(color: Colors.white, fontSize: 14),
+                  ),
                 ),
               ),
             ],
           ),
-        ),
+
+          const SizedBox(height: 8),
+
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Column(
+              children: [
+                _tableHeader(),
+                ...levels.map((e) => _dataRow(e)).toList(),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -155,7 +151,7 @@ class SummaryPage extends StatelessWidget {
   Widget _groupHeader(String text) {
     return Container(
       width: 180,
-      height: 42,
+      height: 44,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         border: Border.all(color: Colors.blue),
@@ -164,7 +160,7 @@ class SummaryPage extends StatelessWidget {
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -172,7 +168,7 @@ class SummaryPage extends StatelessWidget {
   Widget _cell(String text, {double width = 60, bool isHeader = false}) {
     return Container(
       width: width,
-      height: 42,
+      height: 44,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey.shade300),
@@ -182,7 +178,7 @@ class SummaryPage extends StatelessWidget {
         text,
         textAlign: TextAlign.center,
         style: TextStyle(
-          fontSize: 11,
+          fontSize: isHeader ? 13 : 12,
           fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
         ),
       ),

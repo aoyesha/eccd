@@ -192,21 +192,6 @@ class _TeacherAddProfilePageState extends State<TeacherAddProfilePage> {
             _field("Spouse Occupation:*", spouseOccupationController),
           ),
 
-          const SizedBox(height: 16),
-          const Text("Father", style: TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-
-          _row3(
-            _field("Full Name:*"),
-            _field("Occupation:*"),
-            _dropdown("Education:*", educationOptions),
-          ),
-
-          _row2(
-            _field("Age at birth:*"),
-            _field("Spouse Occupation:*"),
-          ),
-
           const SizedBox(height: 32),
 
           Center(
