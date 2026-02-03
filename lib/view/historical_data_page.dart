@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:eccd/util/navbar.dart';
 
 class HistoricalDataPage extends StatelessWidget {
-  const HistoricalDataPage({Key? key}) : super(key: key);
+  final int teacherId;
+
+  const HistoricalDataPage({Key? key, required this.teacherId}) : super(key: key);
 
   final List<String> mostLearnedHeaders = const [
     "THE THREE MOST LEARNED\nGROSS MOTOR",
@@ -28,7 +30,7 @@ class HistoricalDataPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: MediaQuery.of(context).size.width < 700
-          ? Navbar(selectedIndex: 0, onItemSelected: (_) {})
+          ? Navbar(selectedIndex: 4, onItemSelected: (_) {}, teacherId: teacherId)
           : null,
       body: SafeArea(
         child: LayoutBuilder(
@@ -49,7 +51,7 @@ class HistoricalDataPage extends StatelessWidget {
   Widget _desktopLayout() {
     return Row(
       children: [
-        Navbar(selectedIndex: 0, onItemSelected: (_) {}),
+        Navbar(selectedIndex: 4, onItemSelected: (_) {}, teacherId: teacherId),
         Expanded(child: SingleChildScrollView(child: _content(isMobile: false))),
       ],
     );

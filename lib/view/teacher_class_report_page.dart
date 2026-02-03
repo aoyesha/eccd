@@ -5,18 +5,20 @@ import 'teacher_checklist_page.dart';
 class TeacherClassReportPage extends StatelessWidget {
   final String gradeLevel;
   final String section;
+  final int teacherId;
 
   const TeacherClassReportPage({
     Key? key,
     required this.gradeLevel,
     required this.section,
+    required this.teacherId,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: MediaQuery.of(context).size.width < 700
-          ? Navbar(selectedIndex: 0, onItemSelected: (_) {})
+          ? Navbar(selectedIndex: 0, onItemSelected: (_) {}, teacherId: teacherId)
           : null,
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -47,7 +49,7 @@ class TeacherClassReportPage extends StatelessWidget {
   Widget _desktopLayout(BuildContext context, bool isMobile) {
     return Row(
       children: [
-        Navbar(selectedIndex: 0, onItemSelected: (_) {}),
+        Navbar(selectedIndex: 0, onItemSelected: (_) {}, teacherId: teacherId),
         Expanded(
           child: SingleChildScrollView(
             child: Padding(
@@ -182,10 +184,13 @@ class TeacherClassReportPage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const TeacherChecklistPage(),
+                  builder: (_) => TeacherChecklistPage(
+                    teacherId: teacherId,
+                  ),
                 ),
               );
             },
+
             child: Text(
               "View",
               style: TextStyle(

@@ -4,7 +4,9 @@ import 'package:eccd/util/domain.dart';
 import 'package:eccd/data/eccd_questions.dart';
 
 class TeacherChecklistPage extends StatefulWidget {
-  const TeacherChecklistPage({Key? key}) : super(key: key);
+  final int teacherId;
+
+  const TeacherChecklistPage({Key? key, required this.teacherId,}) : super(key: key);
 
   @override
   State<TeacherChecklistPage> createState() => _TeacherChecklistPageState();
@@ -31,7 +33,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: MediaQuery.of(context).size.width < 700
-          ? Navbar(selectedIndex: 0, onItemSelected: (_) {})
+          ? Navbar(selectedIndex: 0, onItemSelected: (_) {}, teacherId: widget.teacherId)
           : null,
       body: SafeArea(
         child: LayoutBuilder(
@@ -52,7 +54,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
   Widget _desktopLayout() {
     return Row(
       children: [
-        Navbar(selectedIndex: 0, onItemSelected: (_) {}),
+        Navbar(selectedIndex: 0, onItemSelected: (_) {}, teacherId: widget.teacherId),
         Expanded(child: SingleChildScrollView(child: _content(isMobile: false))),
       ],
     );

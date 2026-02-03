@@ -1,11 +1,10 @@
-import 'package:eccd/view/archive_page.dart';
-import 'package:eccd/view/historical_data_page.dart';
-import 'package:eccd/view/my_summary_page.dart';
 import 'package:flutter/material.dart';
-
 import '../view/landing_page.dart';
-import '../view/login_page.dart';
 import '../view/teacher_new_data_source.dart';
+import '../view/my_summary_page.dart';
+import '../view/archive_page.dart';
+import '../view/historical_data_page.dart';
+import '../view/login_page.dart';
 
 class NavItem {
   final IconData icon;
@@ -20,12 +19,14 @@ class NavItem {
 class Navbar extends StatelessWidget {
   final int selectedIndex;
   final Function(int) onItemSelected;
+  final int teacherId;
 
   const Navbar({
-    super.key,
+    Key? key,
     required this.selectedIndex,
     required this.onItemSelected,
-  });
+    required this.teacherId,
+  }) : super(key: key);
 
   static const List<NavItem> items = [
     NavItem(icon: Icons.home, label: 'Dashboard'),
@@ -39,21 +40,19 @@ class Navbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 700;
 
-    if (isMobile) {
-      return Drawer(
-        backgroundColor: const Color(0xFF8B1C23),
-        child: _content(context),
-      );
-    }
-
-    return Container(
+    return isMobile
+        ? Drawer(
+      backgroundColor: const Color(0xFF8B1C23),
+      child: _content(context, isMobile: true),
+    )
+        : Container(
       width: 260,
       color: const Color(0xFF8B1C23),
-      child: _content(context),
+      child: _content(context, isMobile: false),
     );
   }
 
-  Widget _content(BuildContext context) {
+  Widget _content(BuildContext context, {required bool isMobile}) {
     return Column(
       children: [
         const SizedBox(height: 40),
@@ -80,8 +79,8 @@ class Navbar extends StatelessWidget {
                 onTap: () {
                   onItemSelected(index);
 
-                  if (MediaQuery.of(context).size.width < 700) {
-                    Navigator.pop(context);
+                  if (isMobile) {
+                    Navigator.pop(context); // close drawer
                   }
 
                   switch (index) {
@@ -89,7 +88,8 @@ class Navbar extends StatelessWidget {
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const LandingPage(role: "Teacher"),
+                          builder: (_) => LandingPage(
+                              role: "Teacher", teacherId: teacherId),
                         ),
                       );
                       break;
@@ -97,7 +97,8 @@ class Navbar extends StatelessWidget {
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const CreateNewClassPage(),
+                          builder: (_) =>
+                              CreateNewClassPage(teacherId: teacherId),
                         ),
                       );
                       break;
@@ -105,7 +106,7 @@ class Navbar extends StatelessWidget {
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const SummaryPage(),
+                          builder: (_) => SummaryPage(teacherId: teacherId),
                         ),
                       );
                       break;
@@ -113,7 +114,7 @@ class Navbar extends StatelessWidget {
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const ArchivePage(),
+                          builder: (_) => ArchivePage(teacherId: teacherId),
                         ),
                       );
                       break;
@@ -121,7 +122,8 @@ class Navbar extends StatelessWidget {
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const HistoricalDataPage(),
+                          builder: (_) =>
+                              HistoricalDataPage(teacherId: teacherId),
                         ),
                       );
                       break;

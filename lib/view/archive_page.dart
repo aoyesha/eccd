@@ -3,7 +3,9 @@ import 'package:eccd/util/navbar.dart';
 import '../util/data_source_tile.dart';
 
 class ArchivePage extends StatefulWidget {
-  const ArchivePage({Key? key}) : super(key: key);
+  final int teacherId;
+
+  const ArchivePage({Key? key, required this.teacherId}) : super(key: key);
 
   @override
   State<ArchivePage> createState() => _ArchivePageState();
@@ -18,7 +20,7 @@ class _ArchivePageState extends State<ArchivePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: MediaQuery.of(context).size.width < 700
-          ? Navbar(selectedIndex: 0, onItemSelected: (_) {})
+          ? Navbar(selectedIndex: 0, onItemSelected: (_) {}, teacherId: widget.teacherId)
           : null,
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -40,7 +42,7 @@ class _ArchivePageState extends State<ArchivePage> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Navbar(selectedIndex: 0, onItemSelected: (_) {}),
+        Navbar(selectedIndex: 0, onItemSelected: (_) {}, teacherId: widget.teacherId),
         Expanded(
           child: SingleChildScrollView(
             child: _content(isMobile: false),

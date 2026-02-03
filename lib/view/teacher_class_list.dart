@@ -5,13 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:eccd/util/navbar.dart';
 
 class ClassListPage extends StatefulWidget {
+  final int classId;
   final String gradeLevel;
   final String section;
+  final int teacherId;
 
   const ClassListPage({
     Key? key,
+    required this.classId,
     required this.gradeLevel,
     required this.section,
+    required this.teacherId,
   }) : super(key: key);
 
   @override
@@ -27,7 +31,7 @@ class _ClassListPageState extends State<ClassListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: MediaQuery.of(context).size.width < 700
-          ? Navbar(selectedIndex: 0, onItemSelected: (_) {})
+          ? Navbar(selectedIndex: 0, onItemSelected: (_) {}, teacherId: widget.teacherId)
           : null,
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -35,7 +39,7 @@ class _ClassListPageState extends State<ClassListPage> {
           return Row(
             children: [
               if (!isMobile)
-                Navbar(selectedIndex: 0, onItemSelected: (_) {}),
+                Navbar(selectedIndex: 0, onItemSelected: (_) {}, teacherId: widget.teacherId),
               Expanded(
                 child: isMobile ? _mobileLayout() : _desktopLayout(),
               ),
@@ -112,9 +116,15 @@ class _ClassListPageState extends State<ClassListPage> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const TeacherAddProfilePage()),
+                  MaterialPageRoute(
+                    builder: (_) => TeacherAddProfilePage(
+                      teacherId: widget.teacherId,
+                      classId: widget.classId,
+                    ),
+                  ),
                 );
               },
+
               child: const Text("Add Student", style: TextStyle(color: Colors.white)),
             ),
           ),
@@ -135,7 +145,11 @@ class _ClassListPageState extends State<ClassListPage> {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const TeacherChecklistPage()),
+            MaterialPageRoute(
+              builder: (_) => TeacherChecklistPage(
+                teacherId: widget.teacherId, // pass the required dynamic value
+              ),
+            ),
           );
         },
         trailing: Row(
@@ -197,6 +211,7 @@ class _ClassListPageState extends State<ClassListPage> {
                     builder: (_) => TeacherClassReportPage(
                       gradeLevel: widget.gradeLevel,
                       section: widget.section,
+                      teacherId: widget.teacherId,
                     ),
                   ),
                 );

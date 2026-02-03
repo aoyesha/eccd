@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:eccd/util/navbar.dart';
 
 class SummaryPage extends StatelessWidget {
-  const SummaryPage({Key? key}) : super(key: key);
+  final int teacherId;
+
+  const SummaryPage({Key? key, required this.teacherId}) : super(key: key);
 
   final List<String> domains = const [
     "GROSS MOTOR",
@@ -28,7 +30,7 @@ class SummaryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: MediaQuery.of(context).size.width < 700
-          ? Navbar(selectedIndex: 0, onItemSelected: (_) {})
+          ? Navbar(selectedIndex: 0, onItemSelected: (_) {}, teacherId: teacherId)
           : null,
       body: Container(
         width: double.infinity,
@@ -53,7 +55,7 @@ class SummaryPage extends StatelessWidget {
   Widget _desktopLayout() {
     return Row(
       children: [
-        Navbar(selectedIndex: 0, onItemSelected: (_) {}),
+        Navbar(selectedIndex: 0, onItemSelected: (_) {}, teacherId: teacherId),
         Expanded(
           child: SingleChildScrollView(
             child: _content(maxWidth: 1200),

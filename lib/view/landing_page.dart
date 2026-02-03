@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import '../view/login_page.dart';
 import 'package:eccd/util/navbar.dart';
 import '../util/data_source_tile.dart';
 import '../util/right_panel.dart';
 
 class LandingPage extends StatelessWidget {
   final String role;
+  final int teacherId;
 
   const LandingPage({
     Key? key,
     required this.role,
+    required this.teacherId,
   }) : super(key: key);
 
   static final List<Map<String, dynamic>> dataSources = [];
@@ -20,6 +23,7 @@ class LandingPage extends StatelessWidget {
           ? Navbar(
         selectedIndex: 0,
         onItemSelected: (_) {},
+        teacherId: teacherId,
       )
           : null,
       body: LayoutBuilder(
@@ -32,6 +36,7 @@ class LandingPage extends StatelessWidget {
                 Navbar(
                   selectedIndex: 0,
                   onItemSelected: (_) {},
+                  teacherId: teacherId,
                 ),
 
               Expanded(
