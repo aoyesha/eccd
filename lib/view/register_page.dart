@@ -3,8 +3,17 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../services/database_service.dart';
 import 'login_page.dart';
-import 'package:flutter/material.dart';
 
+const Map<String, Map<String, List<String>>> regionHierarchy = {
+  "NCR": {
+    "Quezon City": ["District 1", "District 2", "District 3", "District 4"],
+    "Manila": ["District I", "District II", "District III", "District IV"],
+  },
+  "Region IV-A": {
+    "Laguna": ["Calamba", "Los Baños", "Biñan"],
+    "Cavite": ["Imus", "Dasmariñas", "Bacoor"],
+  },
+};
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({Key? key}) : super(key: key);
@@ -19,27 +28,24 @@ class _RegisterPageState extends State<RegisterPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final nameController = TextEditingController();
+  final institutionController = TextEditingController();
 
   bool obscure = true;
   int currentStep = 1;
 
   String? selectedRole;
-  String? selectedInstitution;
-  String? selectedDistrict;
-  String? selectedDivision;
   String? selectedRegion;
+  String? selectedDivision;
+  String? selectedDistrict;
 
   final List<String> accountRole = ['Teacher', 'Admin'];
-  final List<String> institutions = ['A', 'B', 'C'];
-  final List<String> district = ['A', 'B'];
-  final List<String> division = ['A', 'B'];
-  final List<String> region = ['A', 'B'];
 
   @override
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
     nameController.dispose();
+    institutionController.dispose();
     super.dispose();
   }
 
@@ -66,6 +72,8 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  // ================= MOBILE =================
+
   Widget _mobileLayout() {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -77,49 +85,50 @@ class _RegisterPageState extends State<RegisterPage> {
           _title(),
           const SizedBox(height: 20),
           _formHeader(),
-          Align(alignment: Alignment.centerLeft, child: _form()),
+          const SizedBox(height: 16),
+          _form(),
           const SizedBox(height: 32),
         ],
       ),
     );
   }
 
+  // ================= DESKTOP (FIXED) =================
+
   Widget _desktopLayout() {
-    return Center(
-      child: SizedBox(
-        width: 1100,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-
-            Expanded(
-              flex: 5,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 50),
-                    child: Image.asset(
-                      'assets/kids.png',
-                      width: 400,
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 60),
+        child: SizedBox(
+          width: 1100,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // LEFT PANEL
+              Expanded(
+                flex: 5,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(left: 50),
+                      child: Image.asset('assets/kids.png', width: 400),
                     ),
-                  ),
-                  const SizedBox(height: 22),
-                  _title(),
-                ],
+                    const SizedBox(height: 24),
+                    _title(),
+                  ],
+                ),
               ),
-            ),
 
-            const SizedBox(width: 30),
+              const SizedBox(width: 40),
 
-            Expanded(
-              flex: 4,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 420,
+              // RIGHT PANEL (SCROLL SAFE)
+              Expanded(
+                flex: 4,
+                child: SizedBox(
+                  width: 420,
+                  child: SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -129,15 +138,16 @@ class _RegisterPageState extends State<RegisterPage> {
                       ],
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
+  // ================= UI PARTS =================
 
   Widget _title() {
     return const AutoSizeText(
@@ -185,25 +195,27 @@ class _RegisterPageState extends State<RegisterPage> {
     required String hint,
     required List<String> items,
     required String? value,
-    required ValueChanged<String?> onChanged,
+    ValueChanged<String?>? onChanged,
   }) {
     return DropdownButtonFormField<String>(
       value: value,
+      items: items
+          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+          .toList(),
+      onChanged: onChanged,
       decoration: InputDecoration(
         filled: true,
         fillColor: Colors.white,
         hintText: hint,
-        contentPadding:
-        const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
         ),
       ),
-      items: items
-          .map((item) => DropdownMenuItem(value: item, child: Text(item)))
-          .toList(),
-      onChanged: onChanged,
     );
   }
 
@@ -217,8 +229,10 @@ class _RegisterPageState extends State<RegisterPage> {
         filled: true,
         fillColor: Colors.white,
         hintText: hint,
-        contentPadding:
-        const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 14,
+          horizontal: 16,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
@@ -239,8 +253,6 @@ class _RegisterPageState extends State<RegisterPage> {
           icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
           onPressed: () => setState(() => obscure = !obscure),
         ),
-        contentPadding:
-        const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
@@ -249,125 +261,105 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  // ================= FORM =================
+
   Widget _form() {
     return Form(
       key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           if (currentStep == 1) ...[
-            _label('Please choose an account to access the portal'),
+            _label('Account Role'),
             _dropdown(
-              hint: 'Choose an Account',
+              hint: 'Choose Role',
               items: accountRole,
               value: selectedRole,
               onChanged: (v) => setState(() => selectedRole = v),
             ),
             const SizedBox(height: 16),
 
-            _label('Choose Institution:'),
+            _label('Region'),
             _dropdown(
-              hint: 'Institution',
-              items: institutions,
-              value: selectedInstitution,
-              onChanged: (v) => setState(() => selectedInstitution = v),
+              hint: 'Select Region',
+              items: regionHierarchy.keys.toList(),
+              value: selectedRegion,
+              onChanged: (v) {
+                setState(() {
+                  selectedRegion = v;
+                  selectedDivision = null;
+                  selectedDistrict = null;
+                });
+              },
             ),
             const SizedBox(height: 16),
 
-            LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth < 500) {
-                  return Column(
-                    children: [
-                      _dropdown(
-                        hint: 'District',
-                        items: district,
-                        value: selectedDistrict,
-                        onChanged: (v) => setState(() => selectedDistrict = v),
-                      ),
-                      const SizedBox(height: 12),
-                      _dropdown(
-                        hint: 'Division',
-                        items: division,
-                        value: selectedDivision,
-                        onChanged: (v) => setState(() => selectedDivision = v),
-                      ),
-                      const SizedBox(height: 12),
-                      _dropdown(
-                        hint: 'Region',
-                        items: region,
-                        value: selectedRegion,
-                        onChanged: (v) => setState(() => selectedRegion = v),
-                      ),
-                    ],
-                  );
-                }
-
-                return Row(
-                  children: [
-                    Expanded(
-                      child: _dropdown(
-                        hint: 'District',
-                        items: district,
-                        value: selectedDistrict,
-                        onChanged: (v) => setState(() => selectedDistrict = v),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _dropdown(
-                        hint: 'Division',
-                        items: division,
-                        value: selectedDivision,
-                        onChanged: (v) => setState(() => selectedDivision = v),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _dropdown(
-                        hint: 'Region',
-                        items: region,
-                        value: selectedRegion,
-                        onChanged: (v) => setState(() => selectedRegion = v),
-                      ),
-                    ),
-                  ],
-                );
-              },
+            _label('Division'),
+            _dropdown(
+              hint: 'Select Division',
+              items: selectedRegion == null
+                  ? []
+                  : regionHierarchy[selectedRegion!]!.keys.toList(),
+              value: selectedDivision,
+              onChanged: selectedRegion == null
+                  ? null
+                  : (v) {
+                      setState(() {
+                        selectedDivision = v;
+                        selectedDistrict = null;
+                      });
+                    },
             ),
+            const SizedBox(height: 16),
 
+            _label('District'),
+            _dropdown(
+              hint: 'Select District',
+              items: (selectedRegion != null && selectedDivision != null)
+                  ? regionHierarchy[selectedRegion!]![selectedDivision!]!
+                  : [],
+              value: selectedDistrict,
+              onChanged: selectedDivision == null
+                  ? null
+                  : (v) => setState(() => selectedDistrict = v),
+            ),
+            const SizedBox(height: 16),
+
+            _label('Institution / School Name'),
+            _input(
+              controller: institutionController,
+              hint: 'e.g. San Isidro Child Development Center',
+            ),
             const SizedBox(height: 24),
 
             _stepButton("Next", () {
-              if (selectedRole != null &&
-                  selectedInstitution != null &&
-                  selectedDistrict != null &&
-                  selectedDivision != null &&
-                  selectedRegion != null) {
-                setState(() => currentStep = 2);
-              } else {
-                _showSnackBar("Please complete all selections");
+              if (selectedRole == null ||
+                  selectedRegion == null ||
+                  selectedDivision == null ||
+                  selectedDistrict == null ||
+                  institutionController.text.trim().isEmpty) {
+                _showSnackBar("Please complete all required fields");
+                return;
               }
+              setState(() => currentStep = 2);
             }),
           ],
 
           if (currentStep == 2) ...[
-            _label('Your Name:'),
+            _label('Your Name'),
             _input(controller: nameController, hint: 'Juan Dela Cruz'),
             const SizedBox(height: 18),
 
-            _label('Your Email:'),
+            _label('Your Email'),
             _input(controller: emailController, hint: 'juan@deped.gov.ph'),
             const SizedBox(height: 18),
 
-            _label('Set Password:'),
+            _label('Set Password'),
             _passwordInput(),
             const SizedBox(height: 24),
 
-            _createAccountButton(),
+            _stepButton("Create Account", _handleCreateAccount),
             const SizedBox(height: 12),
-
             _stepButton("Back", () => setState(() => currentStep = 1)),
           ],
 
@@ -399,7 +391,6 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-
   Widget _stepButton(String text, VoidCallback onPressed) {
     return SizedBox(
       width: double.infinity,
@@ -412,35 +403,17 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  Widget _createAccountButton() {
-    return _stepButton("Create Account", _handleCreateAccount);
-  }
+  // ================= LOGIC =================
 
   Future<void> _handleCreateAccount() async {
-    String name = nameController.text.trim();
-    String email = emailController.text.trim();
-    String password = passwordController.text.trim();
-
-    if (!RegExp(r'^[\w-\.]+@deped\.gov\.ph$').hasMatch(email)) {
-      _showSnackBar("Email must end with @deped.gov.ph");
-      return;
-    }
-
-    if (!RegExp(
-        r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@%^&*+#_])[A-Za-z\d@%^&*+#_]{8,}$')
-        .hasMatch(password)) {
-      _showSnackBar("Password must meet complexity rules");
-      return;
-    }
-
     final db = DatabaseService.instance;
 
     if (selectedRole == "Teacher") {
       await db.createTeacher({
-        "teacher_name": name,
-        "email": email,
-        "password": password,
-        "school": selectedInstitution,
+        "teacher_name": nameController.text.trim(),
+        "email": emailController.text.trim(),
+        "password": passwordController.text.trim(),
+        "school": institutionController.text.trim(),
         "district": selectedDistrict,
         "division": selectedDivision,
         "region": selectedRegion,
@@ -448,10 +421,10 @@ class _RegisterPageState extends State<RegisterPage> {
       });
     } else {
       await db.createAdmin({
-        "admin_name": name,
-        "email": email,
-        "password": password,
-        "school": selectedInstitution,
+        "admin_name": nameController.text.trim(),
+        "email": emailController.text.trim(),
+        "password": passwordController.text.trim(),
+        "school": institutionController.text.trim(),
         "district": selectedDistrict,
         "division": selectedDivision,
         "region": selectedRegion,

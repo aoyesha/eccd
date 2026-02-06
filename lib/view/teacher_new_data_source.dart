@@ -1,37 +1,37 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:eccd/util/navbar.dart';
 import '../services/database_service.dart';
-import '../view/landing_page.dart';
+import '../services/csv_import_service.dart';
+import 'landing_page.dart';
 
 class CreateNewClassPage extends StatefulWidget {
   final int teacherId;
 
-  const CreateNewClassPage({Key? key, required this.teacherId}) : super(key: key);
+  const CreateNewClassPage({Key? key, required this.teacherId})
+    : super(key: key);
 
   @override
   State<CreateNewClassPage> createState() => _CreateNewClassPageState();
 }
 
 class _CreateNewClassPageState extends State<CreateNewClassPage> {
-  final TextEditingController _levelController = TextEditingController();
-  final TextEditingController _startYearController = TextEditingController();
-  final TextEditingController _endYearController = TextEditingController();
-  final TextEditingController _sectionController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
 
-  late int _currentTeacherId;
+  final gradeController = TextEditingController();
+  final sectionController = TextEditingController();
+  final startYearController = TextEditingController();
+  final endYearController = TextEditingController();
 
-  @override
-  void initState() {
-    super.initState();
-    _currentTeacherId = widget.teacherId;
-  }
+  File? selectedCsvFile;
 
   @override
   void dispose() {
-    _levelController.dispose();
-    _startYearController.dispose();
-    _endYearController.dispose();
-    _sectionController.dispose();
+    gradeController.dispose();
+    sectionController.dispose();
+    startYearController.dispose();
+    endYearController.dispose();
     super.dispose();
   }
 
@@ -39,36 +39,42 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: MediaQuery.of(context).size.width < 700
-          ? Navbar(selectedIndex: 1, onItemSelected: (_) {}, teacherId: widget.teacherId)
+          ? Navbar(
+              selectedIndex: 1,
+              onItemSelected: (_) {},
+              teacherId: widget.teacherId,
+            )
           : null,
       body: LayoutBuilder(
         builder: (context, constraints) {
           return constraints.maxWidth > 700
-              ? _desktopLayout(context)
-              : _mobileLayout(context);
+              ? _desktopLayout()
+              : _mobileLayout();
         },
       ),
     );
   }
 
-  Widget _mobileLayout(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: _form(context, maxWidth: 420),
-      ),
+  Widget _mobileLayout() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: _form(),
     );
   }
 
-  Widget _desktopLayout(BuildContext context) {
+  Widget _desktopLayout() {
     return Row(
       children: [
-        Navbar(selectedIndex: 1, onItemSelected: (_) {}, teacherId: widget.teacherId),
+        Navbar(
+          selectedIndex: 1,
+          onItemSelected: (_) {},
+          teacherId: widget.teacherId,
+        ),
         Expanded(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: _form(context, maxWidth: 480),
+              padding: const EdgeInsets.all(32),
+              child: SizedBox(width: 520, child: _form()),
             ),
           ),
         ),
@@ -76,9 +82,9 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
     );
   }
 
-  Widget _form(BuildContext context, {required double maxWidth}) {
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: maxWidth),
+  Widget _form() {
+    return Form(
+      key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -90,31 +96,24 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
           ),
           const SizedBox(height: 32),
 
-          _label("Level: *"),
-          _input(_levelController),
+          _field("Grade *", gradeController),
+          _field("Section *", sectionController),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
-          _label("Section: *"),
-          _input(_sectionController),
-
-          const SizedBox(height: 16),
-
-          _label("School Year: *"),
           Row(
             children: [
-              Expanded(child: _yearBox(_startYearController, "Start Year")),
+              Expanded(child: _yearField("Start Year", startYearController)),
               const SizedBox(width: 12),
-              Expanded(child: _yearBox(_endYearController, "End Year")),
+              Expanded(child: _yearField("End Year", endYearController)),
             ],
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
 
-          _label("Import Learner's Profile:"),
-          _fileBox(),
+          _csvPicker(),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
 
           SizedBox(
             width: double.infinity,
@@ -122,12 +121,9 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFE64843),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
               ),
               onPressed: _saveClass,
-              child: const Text("Save", style: TextStyle(color: Colors.white, fontSize: 16)),
+              child: const Text("Save", style: TextStyle(color: Colors.white)),
             ),
           ),
         ],
@@ -135,128 +131,142 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
     );
   }
 
-  Widget _input(TextEditingController controller) {
-    return TextField(
-      controller: controller,
-      decoration: _decoration(),
-    );
-  }
+  // ================= CSV PICKER =================
 
-  Widget _yearBox(TextEditingController controller, String hint) {
-    return TextField(
-      controller: controller,
-      keyboardType: TextInputType.number,
-      decoration: _decoration(hint: hint),
-    );
-  }
-
-  Widget _fileBox() {
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: const [
-          Expanded(
-            child: Text(
-              ".csv / .xlsx",
-              style: TextStyle(color: Colors.grey),
+  Widget _csvPicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Import Learners (CSV only)",
+          style: TextStyle(fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 6),
+        InkWell(
+          onTap: _pickCsv,
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    selectedCsvFile?.path.split('/').last ?? "Select .csv file",
+                    style: TextStyle(
+                      color: selectedCsvFile == null
+                          ? Colors.grey
+                          : Colors.black,
+                    ),
+                  ),
+                ),
+                const Icon(Icons.upload_file),
+              ],
             ),
           ),
-          Icon(Icons.upload_file, color: Colors.grey),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _label(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+  Future<void> _pickCsv() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['csv'],
     );
+
+    if (result != null && result.files.single.path != null) {
+      setState(() {
+        selectedCsvFile = File(result.files.single.path!);
+      });
+    }
   }
 
-  InputDecoration _decoration({String? hint}) {
-    return InputDecoration(
-      hintText: hint,
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(6),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(6),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(6),
-        borderSide: const BorderSide(color: Colors.black),
-      ),
-    );
-  }
+  // Saving
 
-  void _saveClass() async {
-    final String startText = _startYearController.text.trim();
-    final String endText = _endYearController.text.trim();
+  Future<void> _saveClass() async {
+    if (!_formKey.currentState!.validate()) return;
 
-    if (_levelController.text.trim().isEmpty ||
-        _sectionController.text.trim().isEmpty ||
-        startText.isEmpty ||
-        endText.isEmpty) {
-      _showErrorSnackBar("Please fill all required fields");
+    final start = int.tryParse(startYearController.text.trim());
+    final end = int.tryParse(endYearController.text.trim());
+
+    if (start == null || end == null || start >= end) {
+      _snack("Invalid school year range");
       return;
     }
-
-    final numericRegex = RegExp(r'^\d{4}$');
-    if (!numericRegex.hasMatch(startText) || !numericRegex.hasMatch(endText)) {
-      _showErrorSnackBar("School Year must be exactly 4 digits");
-      return;
-    }
-
-    final int startYear = int.parse(startText);
-    final int endYear = int.parse(endText);
-
-    if (startYear >= endYear) {
-      _showErrorSnackBar("End School Year must be greater than Start School Year");
-      return;
-    }
-
-    final classData = {
-      'class_level': _levelController.text.trim(),
-      'class_section': _sectionController.text.trim(),
-      'start_school_year': startText,
-      'end_school_year': endText,
-      'status': 'active',
-      'teacher_id': _currentTeacherId,
-    };
 
     final db = await DatabaseService.instance.getDatabase();
-    await db.insert('class_table', classData);
 
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => LandingPage(role: "Teacher", teacherId: widget.teacherId),
-        ),
-      );
+    final classId = await db.insert('class_table', {
+      'class_level': gradeController.text.trim(),
+      'class_section': sectionController.text.trim(),
+      'start_school_year': start.toString(),
+      'end_school_year': end.toString(),
+      'teacher_id': widget.teacherId,
+      'status': 'active',
+    });
+
+    // file import (csv palang)
+    if (selectedCsvFile != null) {
+      try {
+        await CsvImportService.importLearnersFromCsv(
+          file: selectedCsvFile!,
+          classId: classId,
+        );
+      } catch (e) {
+        _snack("CSV import failed: $e");
+        return;
+      }
     }
-  }
 
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
-        backgroundColor: Colors.black,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    if (!mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            LandingPage(role: "Teacher", teacherId: widget.teacherId),
       ),
     );
+  }
+
+  Widget _field(String label, TextEditingController c) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        controller: c,
+        validator: (v) => v == null || v.trim().isEmpty ? "Required" : null,
+        decoration: _decoration(label),
+      ),
+    );
+  }
+
+  Widget _yearField(String label, TextEditingController c) {
+    return TextFormField(
+      controller: c,
+      keyboardType: TextInputType.number,
+      validator: (v) =>
+          v == null || !RegExp(r'^\d{4}$').hasMatch(v) ? "YYYY" : null,
+      decoration: _decoration(label),
+    );
+  }
+
+  InputDecoration _decoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+    );
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.black));
   }
 }

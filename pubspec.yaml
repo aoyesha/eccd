@@ -37,8 +37,12 @@ dependencies:
   get: ^4.6.6
   auto_size_text: ^3.0.0
   sqflite: ^2.2.8+4
+  sqflite_common_ffi: ^2.3.0
   path: ^1.8.3
   google_fonts: ^6.1.0
+  pdf: ^3.10.8
+  csv: ^5.0.2
+  file_picker: 5.5.0
 
 
 dev_dependencies:

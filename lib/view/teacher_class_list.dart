@@ -3,6 +3,7 @@ import 'package:eccd/view/teacher_checklist_page.dart';
 import 'package:eccd/view/teacher_class_report_page.dart';
 import 'package:flutter/material.dart';
 import 'package:eccd/util/navbar.dart';
+import '../services/database_service.dart';
 
 class ClassListPage extends StatefulWidget {
   final int classId;
@@ -23,15 +24,38 @@ class ClassListPage extends StatefulWidget {
 }
 
 class _ClassListPageState extends State<ClassListPage> {
-  List<Map<String, dynamic>> students = [
-    {"name": "Cruz, Adrain M", "active": true},
-  ];
+  List<Map<String, dynamic>> students = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStudents();
+  }
+
+  Future<void> _loadStudents() async {
+    final db = await DatabaseService.instance.getDatabase();
+
+    final result = await db.query(
+      'learner_information_table',
+      where: 'class_id = ? AND status = ?',
+      whereArgs: [widget.classId, 'active'],
+      orderBy: 'surname ASC',
+    );
+
+    setState(() {
+      students = result;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: MediaQuery.of(context).size.width < 700
-          ? Navbar(selectedIndex: 0, onItemSelected: (_) {}, teacherId: widget.teacherId)
+          ? Navbar(
+              selectedIndex: 0,
+              onItemSelected: (_) {},
+              teacherId: widget.teacherId,
+            )
           : null,
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -39,10 +63,12 @@ class _ClassListPageState extends State<ClassListPage> {
           return Row(
             children: [
               if (!isMobile)
-                Navbar(selectedIndex: 0, onItemSelected: (_) {}, teacherId: widget.teacherId),
-              Expanded(
-                child: isMobile ? _mobileLayout() : _desktopLayout(),
-              ),
+                Navbar(
+                  selectedIndex: 0,
+                  onItemSelected: (_) {},
+                  teacherId: widget.teacherId,
+                ),
+              Expanded(child: isMobile ? _mobileLayout() : _desktopLayout()),
             ],
           );
         },
@@ -52,12 +78,7 @@ class _ClassListPageState extends State<ClassListPage> {
 
   Widget _mobileLayout() {
     return SingleChildScrollView(
-      child: Column(
-        children: [
-          _classContent(),
-          _rightPanel(),
-        ],
-      ),
+      child: Column(children: [_classContent(), _rightPanel()]),
     );
   }
 
@@ -80,28 +101,17 @@ class _ClassListPageState extends State<ClassListPage> {
             "${widget.gradeLevel} ${widget.section}",
             style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
-          TextField(
-            decoration: InputDecoration(
-              hintText: "Search",
-              prefixIcon: const Icon(Icons.search),
-              filled: true,
-              fillColor: Colors.grey.shade200,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30),
-                borderSide: BorderSide.none,
-              ),
+          if (students.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Text("No learners added yet."),
             ),
-          ),
 
-          const SizedBox(height: 16),
+          ...students.map(_studentTile).toList(),
 
-          Column(
-            children: students.map((s) => _studentTile(s)).toList(),
-          ),
-
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
 
           SizedBox(
             width: double.infinity,
@@ -113,8 +123,8 @@ class _ClassListPageState extends State<ClassListPage> {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              onPressed: () {
-                Navigator.push(
+              onPressed: () async {
+                final result = await Navigator.push<bool>(
                   context,
                   MaterialPageRoute(
                     builder: (_) => TeacherAddProfilePage(
@@ -123,9 +133,15 @@ class _ClassListPageState extends State<ClassListPage> {
                     ),
                   ),
                 );
-              },
 
-              child: const Text("Add Student", style: TextStyle(color: Colors.white)),
+                if (result == true) {
+                  await _loadStudents();
+                }
+              },
+              child: const Text(
+                "Add Student",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ),
         ],
@@ -134,53 +150,23 @@ class _ClassListPageState extends State<ClassListPage> {
   }
 
   Widget _studentTile(Map<String, dynamic> student) {
-    return Material(
-      color: student["active"] ? Colors.white : Colors.grey.shade300,
-      borderRadius: BorderRadius.circular(10),
+    return Card(
       child: ListTile(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-        title: Text(student["name"], style: const TextStyle(fontSize: 14)),
+        title: Text("${student['surname']}, ${student['given_name']}"),
         onTap: () {
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => TeacherChecklistPage(
-                teacherId: widget.teacherId, // pass the required dynamic value
+                teacherId: widget.teacherId,
+                classId: widget.classId,
+                learnerId: student['learner_id'],
+                learnerName:
+                    "${student['surname']}, ${student['given_name']} ${student['middle_name'] ?? ''}",
               ),
             ),
           );
         },
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.circle,
-              size: 12,
-              color: student["active"] ? Colors.green : Colors.transparent,
-            ),
-            const SizedBox(width: 6),
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert),
-              onSelected: (value) {
-                setState(() {
-                  student["active"] = value == "activate";
-                });
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem(
-                  value: "activate",
-                  child: Text("Activate"),
-                ),
-                PopupMenuItem(
-                  value: "deactivate",
-                  child: Text("Deactivate"),
-                ),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -190,10 +176,6 @@ class _ClassListPageState extends State<ClassListPage> {
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          _statusCard(),
-          const SizedBox(height: 16),
-          _chartCard(),
-          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             height: 44,
@@ -212,86 +194,18 @@ class _ClassListPageState extends State<ClassListPage> {
                       gradeLevel: widget.gradeLevel,
                       section: widget.section,
                       teacherId: widget.teacherId,
+                      classId: widget.classId,
                     ),
                   ),
                 );
               },
-              child: const Text("Class Report", style: TextStyle(color: Colors.white)),
+              child: const Text(
+                "Class Report",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _statusCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
-      ),
-      child: Column(
-        children: [
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Text("Status", style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: 140,
-            height: 140,
-            child: CircularProgressIndicator(
-              value: 0,
-              strokeWidth: 14,
-              color: const Color(0xFF4A1511),
-              backgroundColor: Colors.grey.shade300,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _chartCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text("Class Chart", style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 180,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _bar(10),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _bar(double height) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Container(
-          height: height,
-          decoration: BoxDecoration(
-            color: Colors.redAccent,
-            borderRadius: BorderRadius.circular(6),
-          ),
-        ),
       ),
     );
   }

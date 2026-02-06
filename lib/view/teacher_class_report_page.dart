@@ -1,68 +1,79 @@
 import 'package:flutter/material.dart';
 import 'package:eccd/util/navbar.dart';
+import '../services/database_service.dart';
 import 'teacher_checklist_page.dart';
 
-class TeacherClassReportPage extends StatelessWidget {
+class TeacherClassReportPage extends StatefulWidget {
   final String gradeLevel;
   final String section;
   final int teacherId;
+  final int classId;
 
   const TeacherClassReportPage({
     Key? key,
     required this.gradeLevel,
     required this.section,
     required this.teacherId,
+    required this.classId,
   }) : super(key: key);
 
   @override
+  State<TeacherClassReportPage> createState() => _TeacherClassReportPageState();
+}
+
+class _TeacherClassReportPageState extends State<TeacherClassReportPage> {
+  List<Map<String, dynamic>> learners = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLearners();
+  }
+
+  Future<void> _loadLearners() async {
+    final db = await DatabaseService.instance.getDatabase();
+
+    final result = await db.query(
+      'learner_information_table',
+      where: 'class_id = ?',
+      whereArgs: [widget.classId],
+    );
+
+    setState(() => learners = result);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 700;
+
     return Scaffold(
-      drawer: MediaQuery.of(context).size.width < 700
-          ? Navbar(selectedIndex: 0, onItemSelected: (_) {}, teacherId: teacherId)
+      drawer: isMobile
+          ? Navbar(
+              selectedIndex: 0,
+              onItemSelected: (_) {},
+              teacherId: widget.teacherId,
+            )
           : null,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isMobile = constraints.maxWidth < 700;
-          return isMobile
-              ? _mobileLayout(context, isMobile)
-              : _desktopLayout(context, isMobile);
-        },
+      body: Row(
+        children: [
+          if (!isMobile)
+            Navbar(
+              selectedIndex: 0,
+              onItemSelected: (_) {},
+              teacherId: widget.teacherId,
+            ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: _content(isMobile),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _mobileLayout(BuildContext context, bool isMobile) {
-    return Row(
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 56, 12, 12),
-              child: _content(context, isMobile),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _desktopLayout(BuildContext context, bool isMobile) {
-    return Row(
-      children: [
-        Navbar(selectedIndex: 0, onItemSelected: (_) {}, teacherId: teacherId),
-        Expanded(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: _content(context, isMobile),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _content(BuildContext context, bool isMobile) {
+  Widget _content(bool isMobile) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -73,80 +84,119 @@ class TeacherClassReportPage extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 2),
         Text(
-          "$gradeLevel $section",
-          style: TextStyle(
-            fontSize: isMobile ? 11 : 14,
-            color: Colors.grey,
-          ),
+          "${widget.gradeLevel} ${widget.section}",
+          style: const TextStyle(color: Colors.grey),
         ),
-        SizedBox(height: isMobile ? 12 : 16),
+        const SizedBox(height: 16),
 
-        _tableRow(context, [
-          "NO.",
-          "NAME OF LEARNER",
-          "SEX",
-          "AGE",
-          "STANDARD SCORE",
-          "INTERPRETATION",
-          "",
-        ], isHeader: true, isMobile: isMobile),
+        _tableHeader(isMobile),
 
-        _tableRow(context, ["", "", "", "", "", "", ""], isMobile: isMobile),
-        _tableRow(context, ["", "", "", "", "", "", ""], isMobile: isMobile),
-        _tableRow(context, ["", "", "", "", "", "", ""], isMobile: isMobile),
-        _tableRow(context, ["", "", "", "", "", "", ""], isMobile: isMobile),
-        _tableRow(context, ["", "", "", "", "", "", ""], isMobile: isMobile),
-        _tableRow(context, ["", "", "", "", "", "", ""], isMobile: isMobile),
-        _tableRow(context, ["", "", "", "", "", "", ""], isMobile: isMobile),
-        _tableRow(context, ["", "", "", "", "", "", ""], isMobile: isMobile),
+        ...learners.asMap().entries.map((entry) {
+          final index = entry.key + 1;
+          final student = entry.value;
+
+          return _tableRow(index, student, isMobile);
+        }),
       ],
     );
   }
 
-  Widget _tableRow(
-      BuildContext context,
-      List<String> cells, {
-        bool isHeader = false,
-        required bool isMobile,
-      }) {
+  Widget _tableHeader(bool isMobile) {
+    return _row(
+      isMobile,
+      isHeader: true,
+      cells: const [
+        "No",
+        "Learner Name",
+        "Sex",
+        "Age",
+        "Score",
+        "Interpretation",
+        "",
+      ],
+    );
+  }
+
+  Widget _tableRow(int index, Map<String, dynamic> student, bool isMobile) {
+    return _row(
+      isMobile,
+      cells: [
+        index.toString(),
+        "${student['surname']}, ${student['given_name']} ${student['middle_name'] ?? ''}",
+        student['sex'] ?? '',
+        _computeAge(student['birthday']),
+        "--",
+        "--",
+        "",
+      ],
+      action: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TeacherChecklistPage(
+              teacherId: widget.teacherId,
+              classId: widget.classId,
+              learnerId: student['learner_id'],
+              learnerName: "${student['surname']}, ${student['given_name']}",
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _row(
+    bool isMobile, {
+    required List<String> cells,
+    bool isHeader = false,
+    VoidCallback? action,
+  }) {
     return Container(
       decoration: BoxDecoration(
+        color: isHeader ? Colors.grey.shade200 : Colors.white,
         border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
-        color: isHeader ? Colors.grey.shade100 : Colors.white,
       ),
       child: Row(
         children: [
-          _cell(cells[0], flex: 1, isHeader: isHeader, isMobile: isMobile),
-          _cell(cells[1], flex: 3, isHeader: isHeader, isMobile: isMobile),
-          _cell(cells[2], flex: 1, isHeader: isHeader, isMobile: isMobile),
-          _cell(cells[3], flex: 1, isHeader: isHeader, isMobile: isMobile),
-          _cell(cells[4], flex: 2, isHeader: isHeader, isMobile: isMobile),
-          _cell(cells[5], flex: 2, isHeader: isHeader, isMobile: isMobile),
-          _actionCell(context, isHeader: isHeader, isMobile: isMobile),
+          _cell(cells[0], 1, isMobile, isHeader),
+          _cell(cells[1], 3, isMobile, isHeader),
+          _cell(cells[2], 1, isMobile, isHeader),
+          _cell(cells[3], 1, isMobile, isHeader),
+          _cell(cells[4], 2, isMobile, isHeader),
+          _cell(cells[5], 2, isMobile, isHeader),
+          Expanded(
+            flex: 2,
+            child: isHeader
+                ? const SizedBox()
+                : Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: ElevatedButton(
+                      onPressed: action,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE64843),
+                      ),
+                      child: const Text(
+                        "View",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _cell(
-      String text, {
-        required int flex,
-        bool isHeader = false,
-        required bool isMobile,
-      }) {
+  Widget _cell(String text, int flex, bool isMobile, bool isHeader) {
     return Expanded(
       flex: flex,
       child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: isMobile ? 4 : 8,
-          vertical: isMobile ? 6 : 12,
-        ),
+        padding: EdgeInsets.all(isMobile ? 6 : 10),
         child: Text(
           text,
           style: TextStyle(
-            fontSize: isMobile ? 9 : 12,
+            fontSize: isMobile ? 10 : 13,
             fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
           ),
           overflow: TextOverflow.ellipsis,
@@ -155,52 +205,16 @@ class TeacherClassReportPage extends StatelessWidget {
     );
   }
 
-  Widget _actionCell(
-      BuildContext context, {
-        bool isHeader = false,
-        required bool isMobile,
-      }) {
-    return Expanded(
-      flex: 2,
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: isMobile ? 4 : 8,
-          vertical: isMobile ? 4 : 8,
-        ),
-        child: isHeader
-            ? const SizedBox()
-            : SizedBox(
-          height: isMobile ? 24 : 36,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE64843),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(4),
-              ),
-              padding:
-              EdgeInsets.symmetric(horizontal: isMobile ? 6 : 15),
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => TeacherChecklistPage(
-                    teacherId: teacherId,
-                  ),
-                ),
-              );
-            },
-
-            child: Text(
-              "View",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: isMobile ? 9 : 15,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+  String _computeAge(String? birthday) {
+    if (birthday == null) return "--";
+    final dob = DateTime.tryParse(birthday);
+    if (dob == null) return "--";
+    final today = DateTime.now();
+    int age = today.year - dob.year;
+    if (today.month < dob.month ||
+        (today.month == dob.month && today.day < dob.day)) {
+      age--;
+    }
+    return age.toString();
   }
 }
