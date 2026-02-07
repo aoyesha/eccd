@@ -47,7 +47,6 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     super.dispose();
   }
 
-  // ================= LOAD SAVED DATA =================
   Future<void> _loadSavedAssessment() async {
     final results = await AssessmentService.getAssessment(
       learnerId: widget.learnerId,
@@ -69,13 +68,11 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
 
     if (selectedDate != null) {
       _dateController.text =
-          "${selectedDate!.month}/${selectedDate!.day}/${selectedDate!.year}";
+      "${selectedDate!.month}/${selectedDate!.day}/${selectedDate!.year}";
     }
 
     setState(() {});
   }
-
-  // ================= UI =================
 
   @override
   Widget build(BuildContext context) {
@@ -84,12 +81,15 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     return Scaffold(
       drawer: isMobile
           ? Navbar(
-              selectedIndex: 0,
-              onItemSelected: (_) {},
-              teacherId: widget.teacherId,
-            )
+        selectedIndex: 0,
+        onItemSelected: (_) {},
+        teacherId: widget.teacherId,
+      )
           : null,
-      body: SafeArea(child: isMobile ? _mobileLayout() : _desktopLayout()),
+      body: SafeArea(
+        child: isMobile ? _mobileLayout() : _desktopLayout(),
+      ),
+      bottomNavigationBar: _stickyBottomBar(isMobile),
     );
   }
 
@@ -113,29 +113,23 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     final visibleDomains = selectedDomain == null ? domains : [selectedDomain!];
 
     return Padding(
-      padding: EdgeInsets.all(isMobile ? 12 : 28),
+      padding: EdgeInsets.fromLTRB(
+        isMobile ? 12 : 28,
+        isMobile ? 12 : 28,
+        isMobile ? 12 : 28,
+        100,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(child: _assessmentDropdown()),
-              const SizedBox(width: 12),
-              Expanded(child: _datePicker()),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          Text(
-            widget.learnerName,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-
+          _assessmentRow(isMobile),
           const SizedBox(height: 6),
-          LinearProgressIndicator(value: _overallProgress()),
 
-          const SizedBox(height: 14),
+          _headerRow(isMobile),
+          const SizedBox(height: 8),
+
+          LinearProgressIndicator(value: _overallProgress()),
+          const SizedBox(height: 10),
 
           DomainDropdown(
             domains: ["All Domains", ...domains],
@@ -143,7 +137,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
                 setState(() => selectedDomain = v == "All Domains" ? null : v),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
 
           ...visibleDomains.map((domain) {
             final questions = EccdQuestions.get(domain, lang);
@@ -159,7 +153,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
                   ),
                 ),
                 LinearProgressIndicator(value: _domainProgress(domain)),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 ...List.generate(questions.length, (i) {
                   final key = "$domain-$i";
@@ -193,78 +187,167 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
                   );
                 }),
 
-                const Divider(),
+                const SizedBox(height: 12),
               ],
             );
           }),
+        ],
+      ),
+    );
+  }
 
-          const SizedBox(height: 20),
+  Widget _assessmentRow(bool isMobile) {
+    return SizedBox(
+      width: isMobile ? double.infinity : 320,
+      child: DropdownButtonFormField<String>(
+        value: selectedAssessment,
+        items: const [
+          DropdownMenuItem(value: "Pre-Test", child: Text("Pre-Test")),
+          DropdownMenuItem(value: "Post-Test", child: Text("Post-Test")),
+        ],
+        onChanged: (v) async {
+          selectedAssessment = v!;
+          await _loadSavedAssessment();
+        },
+        decoration: const InputDecoration(labelText: "Assessment"),
+      ),
+    );
+  }
 
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
-                onPressed: _saveAssessment,
-                child: const Text(
-                  "Save",
-                  style: TextStyle(color: Colors.white),
+  Widget _headerRow(bool isMobile) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: _studentInfo(isMobile)),
+        const SizedBox(width: 8),
+        _headerControls(isMobile),
+      ],
+    );
+  }
+
+  Widget _studentInfo(bool isMobile) {
+    return Text(
+      widget.learnerName,
+      style: TextStyle(
+        fontSize: isMobile ? 14 : 26,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
+  Widget _headerControls(bool isMobile) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        SizedBox(
+          height: isMobile ? 28 : 40,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+            onPressed: _exportSummary,
+            child: Text(
+              "Export Summary",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: isMobile ? 10 : 13,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            SizedBox(
+              width: isMobile ? 110 : 170,
+              child: DropdownButtonFormField<String>(
+                value: selectedLanguage,
+                items: const [
+                  DropdownMenuItem(value: "English", child: Text("English")),
+                  DropdownMenuItem(value: "Tagalog", child: Text("Tagalog")),
+                ],
+                onChanged: (v) => setState(() => selectedLanguage = v!),
+                decoration: const InputDecoration(labelText: "Language"),
+              ),
+            ),
+            const SizedBox(width: 6),
+            SizedBox(
+              width: isMobile ? 120 : 200,
+              child: TextField(
+                controller: _dateController,
+                readOnly: true,
+                decoration: const InputDecoration(labelText: "Date"),
+                onTap: _pickDate,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _stickyBottomBar(bool isMobile) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 6),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          SizedBox(
+            height: isMobile ? 36 : 42,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+              onPressed: _saveAssessment,
+              child: const Text(
+                "Save",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            height: isMobile ? 36 : 42,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(3),
                 ),
               ),
-              const SizedBox(width: 12),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                onPressed: _exportSummary,
-                child: const Text(
-                  "Export PDF",
-                  style: TextStyle(color: Colors.white),
-                ),
+              onPressed: _exportSummary,
+              child: const Text(
+                "Export Summary",
+                style: TextStyle(color: Colors.white),
               ),
-            ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ================= ACTIONS =================
-
-  Widget _assessmentDropdown() {
-    return DropdownButtonFormField<String>(
-      value: selectedAssessment,
-      items: const [
-        DropdownMenuItem(value: "Pre-Test", child: Text("Pre-Test")),
-        DropdownMenuItem(value: "Post-Test", child: Text("Post-Test")),
-      ],
-      onChanged: (v) async {
-        selectedAssessment = v!;
-        await _loadSavedAssessment();
-      },
-      decoration: const InputDecoration(labelText: "Assessment"),
+  void _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2015),
+      lastDate: DateTime.now(),
     );
-  }
-
-  Widget _datePicker() {
-    return TextField(
-      controller: _dateController,
-      readOnly: true,
-      decoration: const InputDecoration(labelText: "Date"),
-      onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: selectedDate ?? DateTime.now(),
-          firstDate: DateTime(2015),
-          lastDate: DateTime.now(),
-        );
-        if (picked != null) {
-          setState(() {
-            selectedDate = picked;
-            _dateController.text =
-                "${picked.month}/${picked.day}/${picked.year}";
-          });
-        }
-      },
-    );
+    if (picked != null) {
+      setState(() {
+        selectedDate = picked;
+        _dateController.text =
+        "${picked.month}/${picked.day}/${picked.year}";
+      });
+    }
   }
 
   Future<void> _saveAssessment() async {
@@ -279,10 +362,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     );
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Assessment saved"),
-        backgroundColor: Colors.green,
-      ),
+      const SnackBar(content: Text("Assessment saved")),
     );
   }
 
@@ -291,9 +371,9 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
       widget.learnerName,
       _computeProgress(),
     );
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text("PDF saved: ${file.path}")));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("PDF saved: ${file.path}")),
+    );
   }
 
   Map<String, double> _computeProgress() {
@@ -305,9 +385,9 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     });
 
     return map.map(
-      (k, v) => MapEntry(
+          (k, v) => MapEntry(
         k,
-        v.isEmpty ? 0 : (v.where((e) => e).length / v.length) * 100,
+        v.isEmpty ? 0 : v.where((e) => e).length / v.length,
       ),
     );
   }

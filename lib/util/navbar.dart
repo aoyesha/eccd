@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../view/landing_page.dart';
+import '../view/settings_page.dart';
 import '../view/teacher_new_data_source.dart';
 import '../view/my_summary_page.dart';
 import '../view/archive_page.dart';
@@ -34,6 +35,7 @@ class Navbar extends StatelessWidget {
     NavItem(icon: Icons.description, label: 'My Summary'),
     NavItem(icon: Icons.archive, label: 'My Archive'),
     NavItem(icon: Icons.analytics, label: 'Historical Data Analysis'),
+    NavItem(icon: Icons.settings, label: 'Account Settings'),
   ];
 
   @override
@@ -80,7 +82,7 @@ class Navbar extends StatelessWidget {
                   onItemSelected(index);
 
                   if (isMobile) {
-                    Navigator.pop(context); // close drawer
+                    Navigator.pop(context);
                   }
 
                   switch (index) {
@@ -89,10 +91,13 @@ class Navbar extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (_) => LandingPage(
-                              role: "Teacher", teacherId: teacherId),
+                            role: "Teacher",
+                            teacherId: teacherId,
+                          ),
                         ),
                       );
                       break;
+
                     case 1:
                       Navigator.pushReplacement(
                         context,
@@ -102,6 +107,7 @@ class Navbar extends StatelessWidget {
                         ),
                       );
                       break;
+
                     case 2:
                       Navigator.pushReplacement(
                         context,
@@ -110,6 +116,7 @@ class Navbar extends StatelessWidget {
                         ),
                       );
                       break;
+
                     case 3:
                       Navigator.pushReplacement(
                         context,
@@ -118,12 +125,26 @@ class Navbar extends StatelessWidget {
                         ),
                       );
                       break;
+
                     case 4:
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
                           builder: (_) =>
                               HistoricalDataPage(teacherId: teacherId),
+                        ),
+                      );
+                      break;
+
+                    case 5:
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SettingsPage(
+                            userId: teacherId,
+                            role: "Teacher",
+                            email: "",
+                          ),
                         ),
                       );
                       break;

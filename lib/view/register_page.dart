@@ -30,6 +30,9 @@ class _RegisterPageState extends State<RegisterPage> {
   final nameController = TextEditingController();
   final institutionController = TextEditingController();
 
+  final recoveryAnswer1Controller = TextEditingController();
+  final recoveryAnswer2Controller = TextEditingController();
+
   bool obscure = true;
   int currentStep = 1;
 
@@ -46,6 +49,8 @@ class _RegisterPageState extends State<RegisterPage> {
     passwordController.dispose();
     nameController.dispose();
     institutionController.dispose();
+    recoveryAnswer1Controller.dispose();
+    recoveryAnswer2Controller.dispose();
     super.dispose();
   }
 
@@ -72,8 +77,6 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // ================= MOBILE =================
-
   Widget _mobileLayout() {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -93,61 +96,53 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // ================= DESKTOP (FIXED) =================
-
   Widget _desktopLayout() {
-    return Align(
-      alignment: Alignment.topCenter,
-      child: Padding(
-        padding: const EdgeInsets.only(top: 60),
-        child: SizedBox(
-          width: 1100,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // LEFT PANEL
-              Expanded(
-                flex: 5,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 50),
-                      child: Image.asset('assets/kids.png', width: 400),
+    return Center(
+      child: SizedBox(
+        width: 1100,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              flex: 5,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 50),
+                    child: Image.asset(
+                      'assets/kids.png',
+                      width: 400,
                     ),
-                    const SizedBox(height: 24),
-                    _title(),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 24),
+                  _title(),
+                ],
               ),
-
-              const SizedBox(width: 40),
-
-              // RIGHT PANEL (SCROLL SAFE)
-              Expanded(
-                flex: 4,
-                child: SizedBox(
-                  width: 420,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _formHeader(),
-                        const SizedBox(height: 20),
-                        _form(),
-                      ],
-                    ),
+            ),
+            const SizedBox(width: 40),
+            Expanded(
+              flex: 4,
+              child: SizedBox(
+                width: 420,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _formHeader(),
+                      const SizedBox(height: 20),
+                      _form(),
+                    ],
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
-
-  // ================= UI PARTS =================
 
   Widget _title() {
     return const AutoSizeText(
@@ -207,10 +202,7 @@ class _RegisterPageState extends State<RegisterPage> {
         filled: true,
         fillColor: Colors.white,
         hintText: hint,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
@@ -229,10 +221,8 @@ class _RegisterPageState extends State<RegisterPage> {
         filled: true,
         fillColor: Colors.white,
         hintText: hint,
-        contentPadding: const EdgeInsets.symmetric(
-          vertical: 14,
-          horizontal: 16,
-        ),
+        contentPadding:
+        const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
@@ -261,8 +251,6 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // ================= FORM =================
-
   Widget _form() {
     return Form(
       key: _formKey,
@@ -278,7 +266,6 @@ class _RegisterPageState extends State<RegisterPage> {
               onChanged: (v) => setState(() => selectedRole = v),
             ),
             const SizedBox(height: 16),
-
             _label('Region'),
             _dropdown(
               hint: 'Select Region',
@@ -293,7 +280,6 @@ class _RegisterPageState extends State<RegisterPage> {
               },
             ),
             const SizedBox(height: 16),
-
             _label('Division'),
             _dropdown(
               hint: 'Select Division',
@@ -304,14 +290,13 @@ class _RegisterPageState extends State<RegisterPage> {
               onChanged: selectedRegion == null
                   ? null
                   : (v) {
-                      setState(() {
-                        selectedDivision = v;
-                        selectedDistrict = null;
-                      });
-                    },
+                setState(() {
+                  selectedDivision = v;
+                  selectedDistrict = null;
+                });
+              },
             ),
             const SizedBox(height: 16),
-
             _label('District'),
             _dropdown(
               hint: 'Select District',
@@ -324,14 +309,12 @@ class _RegisterPageState extends State<RegisterPage> {
                   : (v) => setState(() => selectedDistrict = v),
             ),
             const SizedBox(height: 16),
-
             _label('Institution / School Name'),
             _input(
               controller: institutionController,
               hint: 'e.g. San Isidro Child Development Center',
             ),
             const SizedBox(height: 24),
-
             _stepButton("Next", () {
               if (selectedRole == null ||
                   selectedRegion == null ||
@@ -344,27 +327,43 @@ class _RegisterPageState extends State<RegisterPage> {
               setState(() => currentStep = 2);
             }),
           ],
-
           if (currentStep == 2) ...[
             _label('Your Name'),
             _input(controller: nameController, hint: 'Juan Dela Cruz'),
             const SizedBox(height: 18),
-
             _label('Your Email'),
             _input(controller: emailController, hint: 'juan@deped.gov.ph'),
             const SizedBox(height: 18),
-
             _label('Set Password'),
             _passwordInput(),
+            const SizedBox(height: 18),
+            _label('Recovery Question 1'),
+            _input(
+              controller: recoveryAnswer1Controller,
+              hint: 'What is your nickname?',
+            ),
+            const SizedBox(height: 18),
+            _label('Recovery Question 2'),
+            _input(
+              controller: recoveryAnswer2Controller,
+              hint: 'What city were you born in?',
+            ),
             const SizedBox(height: 24),
-
-            _stepButton("Create Account", _handleCreateAccount),
+            _stepButton("Create Account", () {
+              if (nameController.text.trim().isEmpty ||
+                  emailController.text.trim().isEmpty ||
+                  passwordController.text.trim().isEmpty ||
+                  recoveryAnswer1Controller.text.trim().isEmpty ||
+                  recoveryAnswer2Controller.text.trim().isEmpty) {
+                _showSnackBar("Please complete all required fields");
+                return;
+              }
+              _handleCreateAccount();
+            }),
             const SizedBox(height: 12),
             _stepButton("Back", () => setState(() => currentStep = 1)),
           ],
-
           const SizedBox(height: 24),
-
           Center(
             child: RichText(
               text: TextSpan(
@@ -378,7 +377,8 @@ class _RegisterPageState extends State<RegisterPage> {
                       ..onTap = () {
                         Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(builder: (_) => const LoginPage()),
+                          MaterialPageRoute(
+                              builder: (_) => const LoginPage()),
                         );
                       },
                   ),
@@ -403,44 +403,62 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // ================= LOGIC =================
-
   Future<void> _handleCreateAccount() async {
     final db = DatabaseService.instance;
 
-    if (selectedRole == "Teacher") {
-      await db.createTeacher({
-        "teacher_name": nameController.text.trim(),
-        "email": emailController.text.trim(),
-        "password": passwordController.text.trim(),
-        "school": institutionController.text.trim(),
-        "district": selectedDistrict,
-        "division": selectedDivision,
-        "region": selectedRegion,
-        "status": "active",
-      });
-    } else {
-      await db.createAdmin({
-        "admin_name": nameController.text.trim(),
-        "email": emailController.text.trim(),
-        "password": passwordController.text.trim(),
-        "school": institutionController.text.trim(),
-        "district": selectedDistrict,
-        "division": selectedDivision,
-        "region": selectedRegion,
-        "status": "active",
-      });
-    }
+    try {
+      if (selectedRole == "Teacher") {
+        await db.createTeacher({
+          "teacher_name": nameController.text.trim(),
+          "email": emailController.text.trim(),
+          "password": passwordController.text.trim(),
+          "school": institutionController.text.trim(),
+          "district": selectedDistrict,
+          "division": selectedDivision,
+          "region": selectedRegion,
 
-    _showSnackBar("Account created successfully", isError: false);
+          "recovery_q1": "What is your nickname?",
+          "recovery_a1": recoveryAnswer1Controller.text.trim(),
+          "recovery_q2": "What city were you born in?",
+          "recovery_a2": recoveryAnswer2Controller.text.trim(),
 
-    Future.delayed(const Duration(seconds: 1), () {
+          "status": "active",
+        });
+      } else {
+        await db.createAdmin({
+          "admin_name": nameController.text.trim(),
+          "email": emailController.text.trim(),
+          "password": passwordController.text.trim(),
+          "school": institutionController.text.trim(),
+          "district": selectedDistrict,
+          "division": selectedDivision,
+          "region": selectedRegion,
+
+          "recovery_q1": "What is your nickname?",
+          "recovery_a1": recoveryAnswer1Controller.text.trim(),
+          "recovery_q2": "What city were you born in?",
+          "recovery_a2": recoveryAnswer2Controller.text.trim(),
+
+          "status": "active",
+        });
+      }
+
+      _showSnackBar("Account created successfully", isError: false);
+
+      await Future.delayed(const Duration(seconds: 1));
+      if (!mounted) return;
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const LoginPage()),
       );
-    });
+    } catch (e) {
+      _showSnackBar("Registration failed: $e");
+      debugPrint("REGISTER ERROR: $e");
+    }
   }
+
+
 
   void _showSnackBar(String message, {bool isError = true}) {
     ScaffoldMessenger.of(context).showSnackBar(

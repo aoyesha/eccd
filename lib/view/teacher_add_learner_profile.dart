@@ -38,20 +38,27 @@ class _TeacherAddProfilePageState extends State<TeacherAddProfilePage> {
   String? selectedSex;
   String? selectedBirthOrder;
   String? selectedSiblings;
+  String? selectedHandedness;
 
   static const sexOptions = ["Male", "Female"];
   static const birthOrderOptions = ["1st", "2nd", "3rd", "4th", "5th", "6th+"];
   static const siblingOptions = ["0", "1", "2", "3", "4", "5", "6+"];
+  static const handednessOptions = [
+    "Right-handed",
+    "Left-handed",
+    "Ambidextrous",
+    "None yet",
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: MediaQuery.of(context).size.width < 700
           ? Navbar(
-              selectedIndex: 1,
-              onItemSelected: (_) {},
-              teacherId: widget.teacherId,
-            )
+        selectedIndex: 1,
+        onItemSelected: (_) {},
+        teacherId: widget.teacherId,
+      )
           : null,
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -102,7 +109,12 @@ class _TeacherAddProfilePageState extends State<TeacherAddProfilePage> {
           ),
           const SizedBox(height: 24),
 
-          // Student identifiers
+          const Text(
+            "Student Information",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          const SizedBox(height: 8),
+
           _field("Surname*", surnameController),
           _field("First Name*", givenNameController),
           _field("Middle Name*", middleNameController),
@@ -112,19 +124,24 @@ class _TeacherAddProfilePageState extends State<TeacherAddProfilePage> {
           _field("LRN (12 digits)*", lrnController),
 
           _dropdown(
+            "Handedness*",
+            handednessOptions,
+                (v) => selectedHandedness = v,
+          ),
+
+          _dropdown(
             "Birth Order*",
             birthOrderOptions,
-            (v) => selectedBirthOrder = v,
+                (v) => selectedBirthOrder = v,
           ),
           _dropdown(
             "Number of Siblings*",
             siblingOptions,
-            (v) => selectedSiblings = v,
+                (v) => selectedSiblings = v,
           ),
 
           const SizedBox(height: 16),
 
-          // Address
           const Text(
             "Address Information",
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
@@ -137,7 +154,6 @@ class _TeacherAddProfilePageState extends State<TeacherAddProfilePage> {
 
           const SizedBox(height: 16),
 
-          // Parents
           const Text(
             "Parent / Guardian Information",
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
@@ -157,7 +173,10 @@ class _TeacherAddProfilePageState extends State<TeacherAddProfilePage> {
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
               onPressed: _saveLearner,
-              child: const Text("Save Learner"),
+              child: const Text(
+                "Save Learner",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ),
         ],
@@ -165,14 +184,13 @@ class _TeacherAddProfilePageState extends State<TeacherAddProfilePage> {
     );
   }
 
-  // Save student info
-
   Future<void> _saveLearner() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (selectedSex == null ||
         selectedBirthOrder == null ||
         selectedSiblings == null ||
+        selectedHandedness == null ||
         selectedBirthDate == null) {
       _snack("Please complete all required fields.");
       return;
@@ -200,13 +218,12 @@ class _TeacherAddProfilePageState extends State<TeacherAddProfilePage> {
         'sex': selectedSex,
         'lrn': lrnController.text.trim(),
         'birthday': selectedBirthDate!.toIso8601String(),
+        'handedness': selectedHandedness,
         'birth_order': selectedBirthOrder,
         'number_of_siblings': int.parse(selectedSiblings!),
-
         'province': provinceController.text.trim(),
         'city': cityController.text.trim(),
         'barangay': barangayController.text.trim(),
-
         'parent_name': parentNameController.text.trim(),
         'parent_occupation': parentOccupationController.text.trim(),
         'age_mother_at_birth': int.parse(ageMotherController.text.trim()),
@@ -247,10 +264,10 @@ class _TeacherAddProfilePageState extends State<TeacherAddProfilePage> {
   }
 
   Widget _dropdown(
-    String label,
-    List<String> items,
-    Function(String?) onChanged,
-  ) {
+      String label,
+      List<String> items,
+      Function(String?) onChanged,
+      ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: DropdownButtonFormField<String>(
@@ -275,6 +292,7 @@ class _TeacherAddProfilePageState extends State<TeacherAddProfilePage> {
       child: TextFormField(
         readOnly: true,
         validator: (_) => selectedBirthDate == null ? "Required" : null,
+        controller: birthdayController,
         onTap: () async {
           final picked = await showDatePicker(
             context: context,
@@ -286,11 +304,10 @@ class _TeacherAddProfilePageState extends State<TeacherAddProfilePage> {
             setState(() {
               selectedBirthDate = picked;
               birthdayController.text =
-                  "${picked.month}/${picked.day}/${picked.year}";
+              "${picked.month}/${picked.day}/${picked.year}";
             });
           }
         },
-        controller: birthdayController,
         decoration: InputDecoration(
           labelText: "Date of Birth*",
           filled: true,

@@ -29,33 +29,41 @@ class DatabaseService {
   // Create tables
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
-      CREATE TABLE teacher_table (
-        teacher_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        teacher_name TEXT,
-        class_id INTEGER,
-        email TEXT,
-        password TEXT,
-        school TEXT,
-        district TEXT,
-        division TEXT,
-        region TEXT,
-        status TEXT
-      )
-    ''');
+    CREATE TABLE teacher_table (
+      teacher_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      teacher_name TEXT,
+      class_id INTEGER,
+      email TEXT,
+      password TEXT,
+      school TEXT,
+      district TEXT,
+      division TEXT,
+      region TEXT,
+      recovery_q1 TEXT,
+      recovery_a1 TEXT,
+      recovery_q2 TEXT,
+      recovery_a2 TEXT,
+      status TEXT
+    )
+  ''');
 
     await db.execute('''
-      CREATE TABLE admin_table (
-        admin_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        admin_name TEXT,
-        email TEXT,
-        password TEXT,
-        school TEXT,
-        district TEXT,
-        division TEXT,
-        region TEXT,
-        status TEXT
-      )
-    ''');
+    CREATE TABLE admin_table (
+      admin_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      admin_name TEXT,
+      email TEXT,
+      password TEXT,
+      school TEXT,
+      district TEXT,
+      division TEXT,
+      region TEXT,
+      recovery_q1 TEXT,
+      recovery_a1 TEXT,
+      recovery_q2 TEXT,
+      recovery_a2 TEXT,
+      status TEXT
+    )
+  ''');
 
     await db.execute('''
       CREATE TABLE class_table (
@@ -151,5 +159,30 @@ class DatabaseService {
       where: 'class_id = ? AND status = ?',
       whereArgs: [classId, 'active'],
     );
+  }
+
+  // UPDATE PASSWORD
+  Future<void> updatePassword({
+    required String role,
+    required String email,
+    required String newPassword,
+  }) async {
+    final db = await getDatabase();
+
+    if (role == 'Teacher') {
+      await db.update(
+        teacherTable,
+        {'password': newPassword},
+        where: 'email = ?',
+        whereArgs: [email],
+      );
+    } else {
+      await db.update(
+        adminTable,
+        {'password': newPassword},
+        where: 'email = ?',
+        whereArgs: [email],
+      );
+    }
   }
 }

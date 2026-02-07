@@ -141,6 +141,7 @@ class HistoricalDataPage extends StatelessWidget {
                   ],
                 ),
               ),
+
               const SizedBox(height: 24),
               const Text(
                 "Least Mastered Skills",
@@ -212,21 +213,26 @@ class HistoricalDataPage extends StatelessWidget {
   Widget _tableHeader(List<String> headers) {
     return Row(
       children: headers
-          .map((h) => _cell(h, width: 180, isHeader: true))
+          .map((h) => _cell(
+        h,
+        width: 180,
+        isHeader: true,
+      ))
           .toList(),
     );
   }
 
   Widget _tableRow() {
     return Row(
-      children: List.generate(7, (index) => _cell("")),
+      children: List.generate(7, (_) => _cell("")),
     );
   }
 
   Widget _cell(String text, {double width = 180, bool isHeader = false}) {
     return Container(
       width: width,
-      height: 48,
+      height: isHeader ? 72 : 48,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       alignment: Alignment.center,
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey.shade300),
@@ -235,8 +241,9 @@ class HistoricalDataPage extends StatelessWidget {
       child: Text(
         text,
         textAlign: TextAlign.center,
+        softWrap: true,
         style: TextStyle(
-          fontSize: 14,
+          fontSize: 13,
           fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
         ),
       ),
