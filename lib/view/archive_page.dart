@@ -61,9 +61,9 @@ class _ArchivePageState extends State<ArchivePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                "Early Childhood \nDevelopment Checklist",
+                "Early Childhood Development Checklist",
                 maxLines: 2,
-                style: TextStyle(fontSize: 38, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 46, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
               const Divider(),

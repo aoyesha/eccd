@@ -87,6 +87,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
       )
           : null,
       body: SafeArea(
+        bottom: false,
         child: isMobile ? _mobileLayout() : _desktopLayout(),
       ),
       bottomNavigationBar: _stickyBottomBar(isMobile),
@@ -114,10 +115,10 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        isMobile ? 12 : 28,
-        isMobile ? 12 : 28,
-        isMobile ? 12 : 28,
-        100,
+        isMobile ? 12 : 34,
+        isMobile ? 12 : 34,
+        isMobile ? 12 : 34,
+        0,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -148,7 +149,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
                 Text(
                   domain,
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -171,7 +172,9 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
                           });
                         },
                       ),
-                      const Text("YES"),
+                      const Text("YES",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18,)),
+
                       Checkbox(
                         value: noValues[key],
                         onChanged: (v) {
@@ -181,8 +184,16 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
                           });
                         },
                       ),
-                      const Text("NO"),
-                      Expanded(child: Text("${i + 1}. ${questions[i]}")),
+                      const Text("NO ",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18,)),
+                      Expanded(
+                        child: Text(
+                          "${i + 1}. ${questions[i]}",
+                          style: const TextStyle(
+                            fontSize: 18,
+                          ),
+                        ),
+                      ),
                     ],
                   );
                 }),
@@ -229,7 +240,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     return Text(
       widget.learnerName,
       style: TextStyle(
-        fontSize: isMobile ? 14 : 26,
+        fontSize: isMobile ? 14 : 36,
         fontWeight: FontWeight.bold,
       ),
     );

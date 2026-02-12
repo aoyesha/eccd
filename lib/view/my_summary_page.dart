@@ -62,9 +62,9 @@ class SummaryPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            "Early Childhood \nDevelopment Checklist",
+            "Early Childhood Development Checklist",
             maxLines: 2,
-            style: TextStyle(fontSize: 38, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 46, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           const Divider(),
@@ -154,7 +154,7 @@ class SummaryPage extends StatelessWidget {
       height: 44,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.blue),
+        border: Border.all(color: Colors.grey.shade300),
         color: Colors.grey.shade100,
       ),
       child: Text(

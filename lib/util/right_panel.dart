@@ -21,73 +21,78 @@ class RightPanel extends StatelessWidget {
     final bool isTeacher = role == "Teacher";
     final double pct = (overallProgress / 100).clamp(0.0, 1.0);
 
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          _statusCard(pct, isTeacher),
+          const SizedBox(height: 16),
+          _chartCard(pct),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusCard(double pct, bool isTeacher) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 6),
+        ],
+      ),
+      child: Column(
+        children: [
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              "Status",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(height: 16),
+          DonutProgress(
+            progress: pct,
+            size: 140,
+            strokeWidth: 14,
+          ),
+          const SizedBox(height: 16),
+          _miniStat("Data Sources", totalDataSource.toString()),
+          if (isTeacher) const SizedBox(height: 8),
+          if (isTeacher)
+            _miniStat("Total Students", totalStudent.toString()),
+        ],
+      ),
+    );
+  }
+
+  Widget _chartCard(double pct) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 6),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            "Progress Overview",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            "Progress Chart",
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 14),
-
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              DonutProgress(
-                progress: pct,
-                size: 110,
-                strokeWidth: 12,
-              ),
-              const SizedBox(width: 14),
-
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _miniStat("Data Sources", totalDataSource.toString()),
-                    if (isTeacher) const SizedBox(height: 10),
-                    if (isTeacher)
-                      _miniStat("Total Students", totalStudent.toString()),
-                    const SizedBox(height: 10),
-                    _miniStat("Overall", "${(pct * 100).toStringAsFixed(0)}%"),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // progress bar (overall)
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  "Overall Progress",
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
-                ),
-              ),
-              Text(
-                "${(pct * 100).toStringAsFixed(0)}%",
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: pct,
-              minHeight: 8,
-              backgroundColor: Colors.grey.shade200,
-              color: Colors.green,
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 180,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _bar(pct * 180),
+              ],
             ),
           ),
         ],
@@ -101,15 +106,36 @@ class RightPanel extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(fontSize: 12, color: Colors.black54),
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.black54,
+            ),
             overflow: TextOverflow.ellipsis,
           ),
         ),
         Text(
           value,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _bar(double height) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Container(
+          height: height.clamp(0, 180),
+          decoration: BoxDecoration(
+            color: const Color(0xFF8B1C23),
+            borderRadius: BorderRadius.circular(6),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -122,8 +148,8 @@ class DonutProgress extends StatelessWidget {
   const DonutProgress({
     Key? key,
     required this.progress,
-    this.size = 110,
-    this.strokeWidth = 12,
+    this.size = 140,
+    this.strokeWidth = 14,
   }) : super(key: key);
 
   @override
@@ -141,23 +167,16 @@ class DonutProgress extends StatelessWidget {
             painter: _DonutPainter(
               progress: progress.clamp(0.0, 1.0),
               strokeWidth: strokeWidth,
-              trackColor: Colors.grey.shade200,
-              progressColor: Colors.green,
+              trackColor: Colors.grey.shade300,
+              progressColor: const Color(0xFF4A1511),
             ),
           ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                "$percent%",
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 2),
-              const Text(
-                "done",
-                style: TextStyle(fontSize: 11, color: Colors.black54),
-              ),
-            ],
+          Text(
+            "$percent%",
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -197,8 +216,8 @@ class _DonutPainter extends CustomPainter {
 
     canvas.drawCircle(center, radius, trackPaint);
 
-    final startAngle = -1.57079632679;
-    final sweepAngle = 6.28318530718 * progress;
+    const startAngle = -3.14159265359 / 2;
+    final sweepAngle = 2 * 3.14159265359 * progress;
 
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),

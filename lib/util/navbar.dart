@@ -51,11 +51,17 @@ class Navbar extends StatelessWidget {
       width: 260,
       color: const Color(0xFF8B1C23),
       child: _content(context, isMobile: false),
-    );
-  }
 
+
+    );
+
+
+  }
   Widget _content(BuildContext context, {required bool isMobile}) {
+
+
     return Column(
+
       children: [
         const SizedBox(height: 40),
         const CircleAvatar(

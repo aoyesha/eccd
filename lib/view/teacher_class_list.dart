@@ -1,8 +1,8 @@
+import 'package:flutter/material.dart';
+import 'package:eccd/util/navbar.dart';
 import 'package:eccd/view/teacher_add_learner_profile.dart';
 import 'package:eccd/view/teacher_checklist_page.dart';
 import 'package:eccd/view/teacher_class_report_page.dart';
-import 'package:flutter/material.dart';
-import 'package:eccd/util/navbar.dart';
 import '../services/database_service.dart';
 
 class ClassListPage extends StatefulWidget {
@@ -25,6 +25,7 @@ class ClassListPage extends StatefulWidget {
 
 class _ClassListPageState extends State<ClassListPage> {
   List<Map<String, dynamic>> students = [];
+  bool isLoading = true;
 
   @override
   void initState() {
@@ -37,20 +38,47 @@ class _ClassListPageState extends State<ClassListPage> {
 
     final result = await db.query(
       'learner_information_table',
-      where: 'class_id = ?',
-      whereArgs: [widget.classId],
       orderBy: 'surname ASC',
     );
 
-    result.sort((a, b) {
+    // SAFE FILTERING
+    final filtered = result.where((student) {
+      final classId = student['class_id'];
+      return classId != null && classId == widget.classId;
+    }).toList();
+
+    // Active students first
+    filtered.sort((a, b) {
       final aActive = a['status'] == 'active';
       final bActive = b['status'] == 'active';
-      return aActive == bActive ? 0 : (aActive ? -1 : 1);
+
+      if (aActive != bActive) {
+        return aActive ? -1 : 1;
+      }
+
+      return (a['surname'] ?? '')
+          .toString()
+          .compareTo((b['surname'] ?? '').toString());
     });
 
     setState(() {
-      students = result;
+      students = List<Map<String, dynamic>>.from(filtered);
+      isLoading = false;
     });
+  }
+
+  Future<void> _updateStudentStatus(
+      int learnerId, String newStatus) async {
+    final db = await DatabaseService.instance.getDatabase();
+
+    await db.update(
+      'learner_information_table',
+      {'status': newStatus},
+      where: 'learner_id = ?',
+      whereArgs: [learnerId],
+    );
+
+    await _loadStudents();
   }
 
   @override
@@ -112,17 +140,23 @@ class _ClassListPageState extends State<ClassListPage> {
         children: [
           Text(
             "${widget.gradeLevel} ${widget.section}",
-            style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+                fontSize: 36, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
 
-          if (students.isEmpty)
+          if (isLoading)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: CircularProgressIndicator(),
+            )
+          else if (students.isEmpty)
             const Padding(
               padding: EdgeInsets.all(24),
               child: Text("No learners added yet."),
-            ),
-
-          ...students.map(_studentTile).toList(),
+            )
+          else
+            ...students.map(_studentTile).toList(),
 
           const SizedBox(height: 20),
 
@@ -131,7 +165,7 @@ class _ClassListPageState extends State<ClassListPage> {
             height: 48,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF8b1c23),
+                backgroundColor: const Color(0xFF8B1C23),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -162,38 +196,36 @@ class _ClassListPageState extends State<ClassListPage> {
     );
   }
 
-
   Widget _studentTile(Map<String, dynamic> student) {
     final bool isActive = student['status'] == 'active';
 
     return Card(
       elevation: 1,
-      color: Colors.transparent,
       child: ListTile(
-        tileColor: isActive ? Colors.white : Colors.grey.shade300,
+        tileColor:
+        isActive ? Colors.white : Colors.grey.shade300,
         title: Text(
           "${student['surname']}, ${student['given_name']}",
           style: TextStyle(
-            color: isActive ? Colors.black : Colors.grey.shade700,
             fontWeight: FontWeight.w600,
+            color:
+            isActive ? Colors.black : Colors.grey.shade700,
           ),
         ),
         leading: CircleAvatar(
           radius: 6,
-          backgroundColor: isActive ? Colors.green : Colors.red,
+          backgroundColor:
+          isActive ? Colors.green : Colors.red,
         ),
         trailing: PopupMenuButton<String>(
-          onSelected: (value) {
-            setState(() {
-              student['status'] =
-              value == 'activate' ? 'active' : 'inactive';
+          onSelected: (value) async {
+            final newStatus =
+            value == 'activate' ? 'active' : 'inactive';
 
-              students.sort((a, b) {
-                final aActive = a['status'] == 'active';
-                final bActive = b['status'] == 'active';
-                return aActive == bActive ? 0 : (aActive ? -1 : 1);
-              });
-            });
+            await _updateStudentStatus(
+              student['learner_id'],
+              newStatus,
+            );
           },
           itemBuilder: (_) => [
             if (!isActive)
@@ -228,7 +260,6 @@ class _ClassListPageState extends State<ClassListPage> {
     );
   }
 
-
   Widget _rightPanel() {
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -243,7 +274,7 @@ class _ClassListPageState extends State<ClassListPage> {
             height: 44,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF8b1c23),
+                backgroundColor: const Color(0xFF8B1C23),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -278,13 +309,19 @@ class _ClassListPageState extends State<ClassListPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 6),
+        ],
       ),
       child: Column(
         children: [
           const Align(
             alignment: Alignment.centerLeft,
-            child: Text("Status", style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(
+              "Status",
+              style:
+              TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
           const SizedBox(height: 16),
           SizedBox(
@@ -294,7 +331,8 @@ class _ClassListPageState extends State<ClassListPage> {
               value: 0,
               strokeWidth: 14,
               color: const Color(0xFF4A1511),
-              backgroundColor: Colors.grey.shade300,
+              backgroundColor:
+              Colors.grey.shade300,
             ),
           ),
         ],
@@ -308,18 +346,25 @@ class _ClassListPageState extends State<ClassListPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 6),
+        ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
         children: [
-          const Text("Class Chart",
-              style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text(
+            "Class Chart",
+            style:
+            TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 12),
           SizedBox(
             height: 180,
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment:
+              CrossAxisAlignment.end,
               children: [
                 _bar(10),
               ],
@@ -333,12 +378,14 @@ class _ClassListPageState extends State<ClassListPage> {
   Widget _bar(double height) {
     return Expanded(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
+        padding:
+        const EdgeInsets.symmetric(horizontal: 4),
         child: Container(
           height: height,
           decoration: BoxDecoration(
             color: Colors.redAccent,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius:
+            BorderRadius.circular(6),
           ),
         ),
       ),
