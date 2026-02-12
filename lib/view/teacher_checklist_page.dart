@@ -87,14 +87,35 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
       )
           : null,
       body: SafeArea(
-        bottom: false,
-        child: isMobile ? _mobileLayout() : _desktopLayout(),
+        child: Stack(
+          children: [
+            isMobile ? _mobileLayout() : _desktopLayout(),
+
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _stickyBottomBar(isMobile),
+            ),
+          ],
+        ),
       ),
-      bottomNavigationBar: _stickyBottomBar(isMobile),
+    );
+
+  }
+
+  Widget _mobileLayout() {
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            child: _content(true),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _mobileLayout() => SingleChildScrollView(child: _content(true));
 
   Widget _desktopLayout() {
     return Row(
@@ -104,10 +125,21 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
           onItemSelected: (_) {},
           teacherId: widget.teacherId,
         ),
-        Expanded(child: SingleChildScrollView(child: _content(false))),
+        Expanded(
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  child: _content(false),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
+
 
   Widget _content(bool isMobile) {
     final lang = EccdQuestions.fromLabel(selectedLanguage);
@@ -118,7 +150,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
         isMobile ? 12 : 34,
         isMobile ? 12 : 34,
         isMobile ? 12 : 34,
-        0,
+        140,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,7 +222,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
                         child: Text(
                           "${i + 1}. ${questions[i]}",
                           style: const TextStyle(
-                            fontSize: 18,
+                            fontSize: 16,
                           ),
                         ),
                       ),
@@ -302,20 +334,17 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
 
   Widget _stickyBottomBar(bool isMobile) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(color: Colors.black12, blurRadius: 6),
-        ],
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      color: Colors.transparent,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           SizedBox(
             height: isMobile ? 36 : 42,
             child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+              ),
               onPressed: _saveAssessment,
               child: const Text(
                 "Save",
@@ -329,9 +358,6 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(3),
-                ),
               ),
               onPressed: _exportSummary,
               child: const Text(
@@ -344,6 +370,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
       ),
     );
   }
+
 
   void _pickDate() async {
     final picked = await showDatePicker(
