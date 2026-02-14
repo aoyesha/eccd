@@ -48,6 +48,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
   }
 
   Future<void> _loadSavedAssessment() async {
+    // ✅ Get saved assessments from DB
     final results = await AssessmentService.getAssessment(
       learnerId: widget.learnerId,
       classId: widget.classId,
@@ -60,7 +61,6 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     for (final row in results) {
       final key = "${row['domain']}-${row['question_index']}";
       final isYes = row['answer'] == 1;
-
       yesValues[key] = isYes;
       noValues[key] = !isYes;
       selectedDate ??= DateTime.tryParse(row['date_taken']);
@@ -90,7 +90,6 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
         child: Stack(
           children: [
             isMobile ? _mobileLayout() : _desktopLayout(),
-
             Positioned(
               left: 0,
               right: 0,
@@ -101,7 +100,6 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
         ),
       ),
     );
-
   }
 
   Widget _mobileLayout() {
@@ -115,7 +113,6 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
       ],
     );
   }
-
 
   Widget _desktopLayout() {
     return Row(
@@ -140,7 +137,6 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     );
   }
 
-
   Widget _content(bool isMobile) {
     final lang = EccdQuestions.fromLabel(selectedLanguage);
     final visibleDomains = selectedDomain == null ? domains : [selectedDomain!];
@@ -157,21 +153,16 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
         children: [
           _assessmentRow(isMobile),
           const SizedBox(height: 6),
-
           _headerRow(isMobile),
           const SizedBox(height: 8),
-
           LinearProgressIndicator(value: _overallProgress()),
           const SizedBox(height: 10),
-
           DomainDropdown(
             domains: ["All Domains", ...domains],
             onChanged: (v) =>
                 setState(() => selectedDomain = v == "All Domains" ? null : v),
           ),
-
           const SizedBox(height: 14),
-
           ...visibleDomains.map((domain) {
             final questions = EccdQuestions.get(domain, lang);
 
@@ -187,7 +178,6 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
                 ),
                 LinearProgressIndicator(value: _domainProgress(domain)),
                 const SizedBox(height: 6),
-
                 ...List.generate(questions.length, (i) {
                   final key = "$domain-$i";
                   yesValues.putIfAbsent(key, () => false);
@@ -204,9 +194,11 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
                           });
                         },
                       ),
-                      const Text("YES",
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18,)),
-
+                      const Text(
+                        "YES",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 18),
+                      ),
                       Checkbox(
                         value: noValues[key],
                         onChanged: (v) {
@@ -216,8 +208,11 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
                           });
                         },
                       ),
-                      const Text("NO ",
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18,)),
+                      const Text(
+                        "NO ",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 18),
+                      ),
                       Expanded(
                         child: Text(
                           "${i + 1}. ${questions[i]}",
@@ -229,7 +224,6 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
                     ],
                   );
                 }),
-
                 const SizedBox(height: 12),
               ],
             );
@@ -371,7 +365,6 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     );
   }
 
-
   void _pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -389,19 +382,42 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
   }
 
   Future<void> _saveAssessment() async {
-    if (selectedDate == null) return;
+    if (selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select a date before saving")),
+      );
+      return;
+    }
 
-    await AssessmentService.saveAssessment(
-      learnerId: widget.learnerId,
-      classId: widget.classId,
-      assessmentType: selectedAssessment,
-      date: selectedDate!,
-      yesValues: yesValues,
-    );
+    if (yesValues.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No answers to save")),
+      );
+      return;
+    }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Assessment saved")),
-    );
+    try {
+      print("Saving assessment for learnerId: ${widget.learnerId}"); // debug
+      await AssessmentService.saveAssessment(
+        learnerId: widget.learnerId,
+        classId: widget.classId,
+        assessmentType: selectedAssessment,
+        date: selectedDate!,
+        yesValues: yesValues,
+      );
+      print("Assessment saved successfully!");
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Assessment saved")),
+      );
+
+      Navigator.pop(context, true); // go back to TeacherClassListPage
+    } catch (e) {
+      print("Error saving assessment: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error saving assessment: $e")),
+      );
+    }
   }
 
   Future<void> _exportSummary() async {

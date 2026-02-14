@@ -199,10 +199,32 @@ class _TeacherAddProfilePageState extends State<TeacherAddProfilePage> {
     try {
       final db = await DatabaseService.instance.getDatabase();
 
+      final lrn = lrnController.text.trim();
+      final ageMother = ageMotherController.text.trim();
+
+      // Check LRN numeric
+      if (lrn.isEmpty || int.tryParse(lrn) == null) {
+        _snack("LRN must be a numerical value.");
+        return;
+      }
+
+      // Check LRN length
+      if (lrn.length != 12) {
+        _snack("LRN must be exactly 12 digits.");
+        return;
+      }
+
+      // Check Mother's Age numeric
+      if (ageMother.isEmpty || int.tryParse(ageMother) == null) {
+        _snack("Mother's age at birth must be a numerical value.");
+        return;
+      }
+
+      // Check if LRN already exists in DB
       final existing = await db.query(
         'learner_information_table',
         where: 'lrn = ?',
-        whereArgs: [lrnController.text.trim()],
+        whereArgs: [lrn],
       );
 
       if (existing.isNotEmpty) {
@@ -210,6 +232,7 @@ class _TeacherAddProfilePageState extends State<TeacherAddProfilePage> {
         return;
       }
 
+      // Insert into DB..
       await db.insert('learner_information_table', {
         'class_id': widget.classId,
         'surname': surnameController.text.trim(),
@@ -233,12 +256,7 @@ class _TeacherAddProfilePageState extends State<TeacherAddProfilePage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Learner successfully added"),
-          backgroundColor: Colors.green,
-        ),
-      );
+      _snack("Learner successfully added", isError: false);
 
       await Future.delayed(const Duration(milliseconds: 400));
       Navigator.pop(context, true);
@@ -318,7 +336,31 @@ class _TeacherAddProfilePageState extends State<TeacherAddProfilePage> {
     );
   }
 
-  void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  void _snack(String msg, {bool isError = true}) {
+    final snackBar = SnackBar(
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.all(16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: isError ? Colors.black : Colors.green[700],
+      content: Row(
+        children: [
+          Expanded(
+            child: Text(
+              msg,
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            child: const Icon(Icons.close, color: Colors.white),
+          ),
+        ],
+      ),
+      duration: const Duration(seconds: 5),
+    );
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(snackBar);
   }
 }

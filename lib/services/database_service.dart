@@ -12,7 +12,9 @@ class DatabaseService {
   static const adminTable = "admin_table";
   static const classTable = "class_table";
   static const learnerTable = "learner_information_table";
-  static const assessmentTable = "assessment_results";
+  static const assessmentHeaderTable = "assessment_header";
+  static const assessmentResultsTable = "assessment_results";
+  static const learnerEcdTable = 'learner_ecd_table';
 
   // Database
   Future<Database> getDatabase() async {
@@ -21,50 +23,53 @@ class DatabaseService {
     final dbPath = join(await getDatabasesPath(), "eccd_db.db");
     print("SQLite database path: $dbPath");
 
-    _database = await openDatabase(dbPath, version: 1, onCreate: _onCreate);
+    _database = await openDatabase(dbPath, version: 2, onCreate: _onCreate);
 
     return _database!;
   }
 
   // Create tables
   Future<void> _onCreate(Database db, int version) async {
+    // ------------------ TEACHER ------------------
     await db.execute('''
-    CREATE TABLE teacher_table (
-      teacher_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      teacher_name TEXT,
-      class_id INTEGER,
-      email TEXT,
-      password TEXT,
-      school TEXT,
-      district TEXT,
-      division TEXT,
-      region TEXT,
-      recovery_q1 TEXT,
-      recovery_a1 TEXT,
-      recovery_q2 TEXT,
-      recovery_a2 TEXT,
-      status TEXT
-    )
-  ''');
+      CREATE TABLE teacher_table (
+        teacher_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        teacher_name TEXT,
+        class_id INTEGER,
+        email TEXT,
+        password TEXT,
+        school TEXT,
+        district TEXT,
+        division TEXT,
+        region TEXT,
+        recovery_q1 TEXT,
+        recovery_a1 TEXT,
+        recovery_q2 TEXT,
+        recovery_a2 TEXT,
+        status TEXT
+      )
+    ''');
 
+    // ------------------ ADMIN ------------------
     await db.execute('''
-    CREATE TABLE admin_table (
-      admin_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      admin_name TEXT,
-      email TEXT,
-      password TEXT,
-      school TEXT,
-      district TEXT,
-      division TEXT,
-      region TEXT,
-      recovery_q1 TEXT,
-      recovery_a1 TEXT,
-      recovery_q2 TEXT,
-      recovery_a2 TEXT,
-      status TEXT
-    )
-  ''');
+      CREATE TABLE admin_table (
+        admin_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        admin_name TEXT,
+        email TEXT,
+        password TEXT,
+        school TEXT,
+        district TEXT,
+        division TEXT,
+        region TEXT,
+        recovery_q1 TEXT,
+        recovery_a1 TEXT,
+        recovery_q2 TEXT,
+        recovery_a2 TEXT,
+        status TEXT
+      )
+    ''');
 
+    // ------------------ CLASS ------------------
     await db.execute('''
       CREATE TABLE class_table (
         class_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,6 +82,7 @@ class DatabaseService {
       )
     ''');
 
+    // ------------------ LEARNER ------------------
     await db.execute('''
       CREATE TABLE learner_information_table (
         learner_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,21 +107,76 @@ class DatabaseService {
       )
     ''');
 
+    // ------------------ ASSESSMENT HEADER ------------------
     await db.execute('''
-      CREATE TABLE assessment_results (
+      CREATE TABLE assessment_header (
         assessment_id INTEGER PRIMARY KEY AUTOINCREMENT,
         learner_id INTEGER NOT NULL,
         class_id INTEGER NOT NULL,
+        assessment_type TEXT NOT NULL,
+        date_taken TEXT NOT NULL,
+        age_as_of_assessment REAL,
+        FOREIGN KEY (learner_id) REFERENCES learner_information_table(learner_id),
+        FOREIGN KEY (class_id) REFERENCES class_table(class_id)
+      )
+    ''');
+
+    // ------------------ ASSESSMENT RESULTS ------------------
+    await db.execute('''
+      CREATE TABLE assessment_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        assessment_id INTEGER NOT NULL,
         domain TEXT NOT NULL,
         question_index INTEGER NOT NULL,
         answer INTEGER NOT NULL,
-        assessment_type TEXT NOT NULL,
-        date_taken TEXT NOT NULL
+        FOREIGN KEY (assessment_id) REFERENCES assessment_header(assessment_id)
+      )
+    ''');
+
+    // ------------------ LEARNER ECD SUMMARY ------------------
+    await db.execute('''
+      CREATE TABLE learner_ecd_table (
+        learner_ecd_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        assessment_id INTEGER,
+        gmd_total INTEGER,
+        gmd_ss INTEGER,
+        gmd_interpretation TEXT,
+
+        fms_total INTEGER,
+        fms_ss INTEGER,
+        fms_interpretation TEXT,
+
+        shd_total INTEGER,
+        shd_ss INTEGER,
+        shd_interpretation TEXT,
+
+        rl_total INTEGER,
+        rl_ss INTEGER,
+        rl_interpretation TEXT,
+
+        el_total INTEGER,
+        el_ss INTEGER,
+        el_interpretation TEXT,
+
+        cd_total INTEGER,
+        cd_ss INTEGER,
+        cd_interpretation TEXT,
+
+        sed_total INTEGER,
+        sed_ss INTEGER,
+        sed_interpretation TEXT,
+
+        raw_score INTEGER,
+        summary_scaled_score INTEGER,
+        standard_score INTEGER,
+        interpretation TEXT,
+
+        FOREIGN KEY (assessment_id) REFERENCES assessment_header(assessment_id)
       )
     ''');
   }
 
-  // insertions
+  // ================== INSERT METHODS ==================
   Future<void> createTeacher(Map<String, dynamic> data) async {
     final db = await getDatabase();
     await db.insert(teacherTable, data);
@@ -161,7 +222,7 @@ class DatabaseService {
     );
   }
 
-  // UPDATE PASSWORD
+  // ================== PASSWORD UPDATE ==================
   Future<void> updatePassword({
     required String role,
     required String email,

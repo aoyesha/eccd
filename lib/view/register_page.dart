@@ -350,14 +350,53 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
             const SizedBox(height: 24),
             _stepButton("Create Account", () {
-              if (nameController.text.trim().isEmpty ||
-                  emailController.text.trim().isEmpty ||
-                  passwordController.text.trim().isEmpty ||
-                  recoveryAnswer1Controller.text.trim().isEmpty ||
-                  recoveryAnswer2Controller.text.trim().isEmpty) {
+              final name = nameController.text.trim();
+              final email = emailController.text.trim();
+              final password = passwordController.text.trim();
+              final recovery1 = recoveryAnswer1Controller.text.trim();
+              final recovery2 = recoveryAnswer2Controller.text.trim();
+
+              // Required fields
+              if (name.isEmpty ||
+                  email.isEmpty ||
+                  password.isEmpty ||
+                  recovery1.isEmpty ||
+                  recovery2.isEmpty) {
                 _showSnackBar("Please complete all required fields");
                 return;
               }
+
+              // Email validation
+              if (!email.endsWith("@deped.gov.ph")) {
+                _showSnackBar("Email must end with \"@deped.gov.ph\"");
+                return;
+              }
+
+              // Password length
+              if (password.length < 8) {
+                _showSnackBar("Password must be at least 8 characters");
+                return;
+              }
+
+              // At least 1 uppercase
+              if (!RegExp(r'[A-Z]').hasMatch(password)) {
+                _showSnackBar("Password must contain at least 1 uppercase letter");
+                return;
+              }
+
+              // At least 1 number
+              if (!RegExp(r'[0-9]').hasMatch(password)) {
+                _showSnackBar("Password must contain at least 1 numerical digit");
+                return;
+              }
+
+              // At least 1 special character
+              if (!RegExp(r'[!@#\$%\^&\*\(\)_]').hasMatch(password)) {
+                _showSnackBar(
+                    "Password must contain at least 1 special symbol (!, @, #, \$, %, ^, &, *, _,)");
+                return;
+              }
+
               _handleCreateAccount();
             }),
             const SizedBox(height: 12),
@@ -461,11 +500,37 @@ class _RegisterPageState extends State<RegisterPage> {
 
 
   void _showSnackBar(String message, {bool isError = true}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.black : Colors.green[700],
+    final snackBar = SnackBar(
+      behavior: SnackBarBehavior.floating, // allows rounded corners
+      margin: const EdgeInsets.all(16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
       ),
+      backgroundColor: isError ? Colors.black : Colors.green[700],
+      content: Row(
+        children: [
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+          GestureDetector(
+            onTap: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+            child: const Icon(
+              Icons.close,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+      duration: const Duration(seconds: 5),
     );
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(snackBar);
   }
 }
