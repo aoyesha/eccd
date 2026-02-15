@@ -59,10 +59,6 @@ class RightPanel extends StatelessWidget {
             strokeWidth: 14,
           ),
           const SizedBox(height: 16),
-          _miniStat("Data Sources", totalDataSource.toString()),
-          if (isTeacher) const SizedBox(height: 8),
-          if (isTeacher)
-            _miniStat("Total Students", totalStudent.toString()),
         ],
       ),
     );

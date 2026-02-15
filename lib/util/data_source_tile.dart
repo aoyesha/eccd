@@ -103,7 +103,7 @@ class DataSourceTile extends StatelessWidget {
                     Text(
                       level,
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Colors.white70,
                       ),
@@ -117,7 +117,7 @@ class DataSourceTile extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 15,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
