@@ -48,7 +48,8 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
   }
 
   Future<void> _loadSavedAssessment() async {
-    // ✅ Get saved assessments from DB
+    // reset date so switching Pre/Post reloads correctly
+    selectedDate = null;
     final results = await AssessmentService.getAssessment(
       learnerId: widget.learnerId,
       classId: widget.classId,
@@ -59,11 +60,21 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     noValues.clear();
 
     for (final row in results) {
-      final key = "${row['domain']}-${row['question_index']}";
-      final isYes = row['answer'] == 1;
+      // FIX: DB question_index is 1-based, UI keys are 0-based
+      final dbIndex = int.tryParse(row['question_index'].toString()) ?? 1;
+      final key = "${row['domain']}-${dbIndex - 1}";
+
+      // FIX: database may return int OR string -> normalize safely
+      final answerRaw = row['answer'];
+      final isYes = answerRaw.toString() == '1';
+
       yesValues[key] = isYes;
       noValues[key] = !isYes;
-      selectedDate ??= DateTime.tryParse(row['date_taken']);
+
+      final dateStr = row['date_taken']?.toString();
+      if (selectedDate == null && dateStr != null && dateStr.isNotEmpty) {
+        selectedDate = DateTime.tryParse(dateStr);
+      }
     }
 
     if (selectedDate != null) {
@@ -71,7 +82,13 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
       "${selectedDate!.month}/${selectedDate!.day}/${selectedDate!.year}";
     }
 
-    setState(() {});
+    if (mounted) setState(() {});
+  }
+
+  Color _progressColor(double value) {
+    if (value == 0) return Colors.red;
+    if (value == 1) return Colors.green;
+    return Colors.orange;
   }
 
   @override
@@ -155,14 +172,17 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
           const SizedBox(height: 6),
           _headerRow(isMobile),
           const SizedBox(height: 8),
-          LinearProgressIndicator(value: _overallProgress()),
-          const SizedBox(height: 10),
+          LinearProgressIndicator(
+            value: _overallProgress(),
+            color: _progressColor(_overallProgress()),
+          ),
+          const SizedBox(height: 14),
           DomainDropdown(
             domains: ["All Domains", ...domains],
             onChanged: (v) =>
                 setState(() => selectedDomain = v == "All Domains" ? null : v),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 18),
           ...visibleDomains.map((domain) {
             final questions = EccdQuestions.get(domain, lang);
 
@@ -176,55 +196,60 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                LinearProgressIndicator(value: _domainProgress(domain)),
                 const SizedBox(height: 6),
+                LinearProgressIndicator(
+                  value: _domainProgress(domain),
+                  color: _progressColor(_domainProgress(domain)),
+                ),
+                const SizedBox(height: 14),
                 ...List.generate(questions.length, (i) {
                   final key = "$domain-$i";
                   yesValues.putIfAbsent(key, () => false);
-                  noValues.putIfAbsent(key, () => false);
 
-                  return Row(
-                    children: [
-                      Checkbox(
-                        value: yesValues[key],
-                        onChanged: (v) {
-                          setState(() {
-                            yesValues[key] = v ?? false;
-                            noValues[key] = false;
-                          });
-                        },
-                      ),
-                      const Text(
-                        "YES",
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 18),
-                      ),
-                      Checkbox(
-                        value: noValues[key],
-                        onChanged: (v) {
-                          setState(() {
-                            noValues[key] = v ?? false;
-                            yesValues[key] = false;
-                          });
-                        },
-                      ),
-                      const Text(
-                        "NO ",
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 18),
-                      ),
-                      Expanded(
-                        child: Text(
-                          "${i + 1}. ${questions[i]}",
-                          style: const TextStyle(
-                            fontSize: 16,
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final screenWidth = MediaQuery.of(context).size.width;
+                            final double boxSize =
+                            screenWidth < 700 ? 18 :
+                            screenWidth < 1100 ? 22 :
+                            24;
+                            final double spacing =
+                            screenWidth < 700 ? 12 : 18;
+
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  yesValues[key] = !(yesValues[key] ?? false);
+                                });
+                              },
+                              child: Container(
+                                width: boxSize,
+                                height: boxSize,
+                                margin: EdgeInsets.only(right: spacing, top: 2),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.black, width: 1.5),
+                                  color: yesValues[key]! ? Colors.black : Colors.white,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        Expanded(
+                          child: Text(
+                            "${i + 1}. ${questions[i]}",
+                            style: const TextStyle(fontSize: 16, height: 1.5),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   );
                 }),
-                const SizedBox(height: 12),
+                const SizedBox(height: 22),
               ],
             );
           }),
@@ -243,7 +268,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
           DropdownMenuItem(value: "Post-Test", child: Text("Post-Test")),
         ],
         onChanged: (v) async {
-          selectedAssessment = v!;
+          setState(() => selectedAssessment = v!);
           await _loadSavedAssessment();
         },
         decoration: const InputDecoration(labelText: "Assessment"),
@@ -389,31 +414,26 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
       return;
     }
 
-    if (yesValues.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No answers to save")),
-      );
-      return;
-    }
+    final Map<String, bool> fullAnswerMap = {};
+    yesValues.forEach((key, value) {
+      fullAnswerMap[key] = value;
+    });
 
     try {
-      print("Saving assessment for learnerId: ${widget.learnerId}"); // debug
       await AssessmentService.saveAssessment(
         learnerId: widget.learnerId,
         classId: widget.classId,
         assessmentType: selectedAssessment,
         date: selectedDate!,
-        yesValues: yesValues,
+        yesValues: fullAnswerMap,
       );
-      print("Assessment saved successfully!");
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Assessment saved")),
       );
 
-      Navigator.pop(context, true); // go back to TeacherClassListPage
+      Navigator.pop(context, true);
     } catch (e) {
-      print("Error saving assessment: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error saving assessment: $e")),
       );
