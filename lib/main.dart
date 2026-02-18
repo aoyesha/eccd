@@ -1,3 +1,4 @@
+import 'package:eccd/view/login_page.dart';
 import 'package:eccd/view/teacher_class_list.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -55,12 +56,7 @@ class MyApp extends StatelessWidget {
               child: child!,
             );
           },
-          home: const ClassListPage(
-            gradeLevel: "",
-            section: "",
-            teacherId: 1,
-            classId: 1,
-          ),
+          home: const LoginPage(),
         );
       },
     );

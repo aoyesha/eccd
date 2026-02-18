@@ -247,7 +247,7 @@ class _LoginPageState extends State<LoginPage> {
       decoration: InputDecoration(
         filled: true,
         fillColor: Colors.white,
-        hintText: '●●●●●●●●',
+        hintText: '••••••••',
         suffixIcon: IconButton(
           icon: Icon(
             size: 20,

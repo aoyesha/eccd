@@ -301,25 +301,6 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        SizedBox(
-          height: isMobile ? 28 : 40,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-            onPressed: _exportSummary,
-            child: Text(
-              "Export Summary",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: isMobile ? 10 : 13,
-              ),
-            ),
-          ),
-        ),
         const SizedBox(height: 6),
         Row(
           children: [
@@ -417,7 +398,8 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     final Map<String, bool> fullAnswerMap = {};
     yesValues.forEach((key, value) {
       fullAnswerMap[key] = value;
-    });
+    },
+    );
 
     try {
       await AssessmentService.saveAssessment(

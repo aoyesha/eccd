@@ -238,7 +238,7 @@ class _RegisterPageState extends State<RegisterPage> {
       decoration: InputDecoration(
         filled: true,
         fillColor: Colors.white,
-        hintText: '●●●●●●●●',
+        hintText: '••••••••',
         suffixIcon: IconButton(
           icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
           onPressed: () => setState(() => obscure = !obscure),
@@ -332,7 +332,7 @@ class _RegisterPageState extends State<RegisterPage> {
             _input(controller: nameController, hint: 'Juan Dela Cruz'),
             const SizedBox(height: 18),
             _label('Your Email'),
-            _input(controller: emailController, hint: 'juan@deped.gov.ph'),
+            _input(controller: emailController, hint: 'juan.delacruz@deped.gov.ph'),
             const SizedBox(height: 18),
             _label('Set Password'),
             _passwordInput(),
