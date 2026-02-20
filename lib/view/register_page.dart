@@ -355,6 +355,7 @@ class _RegisterPageState extends State<RegisterPage> {
               final password = passwordController.text.trim();
               final recovery1 = recoveryAnswer1Controller.text.trim();
               final recovery2 = recoveryAnswer2Controller.text.trim();
+              final passwordErrors = [];
 
               // Required fields
               if (name.isEmpty ||
@@ -368,32 +369,36 @@ class _RegisterPageState extends State<RegisterPage> {
 
               // Email validation
               if (!email.endsWith("@deped.gov.ph")) {
-                _showSnackBar("Email must end with \"@deped.gov.ph\"");
-                return;
+                passwordErrors.add("Email must end with \"@deped.gov.ph\"");
               }
 
               // Password length
               if (password.length < 8) {
-                _showSnackBar("Password must be at least 8 characters");
-                return;
+                passwordErrors.add("Password must be at least 8 characters");
               }
 
               // At least 1 uppercase
               if (!RegExp(r'[A-Z]').hasMatch(password)) {
-                _showSnackBar("Password must contain at least 1 uppercase letter");
-                return;
+                passwordErrors.add("Password must contain at least 1 uppercase letter");
               }
 
               // At least 1 number
               if (!RegExp(r'[0-9]').hasMatch(password)) {
-                _showSnackBar("Password must contain at least 1 numerical digit");
-                return;
+                passwordErrors.add("Password must contain at least 1 numerical digit");
               }
 
               // At least 1 special character
               if (!RegExp(r'[!@#\$%\^&\*\(\)_]').hasMatch(password)) {
-                _showSnackBar(
-                    "Password must contain at least 1 special symbol (!, @, #, \$, %, ^, &, *, _,)");
+                passwordErrors.add("Password must contain at least 1 special symbol (!, @, #, \$, %, ^, &, *, _,)");
+              }
+
+              // Shows all password errors in bullet format
+              if(passwordErrors.isNotEmpty){
+                final String bulletList = passwordErrors
+                    .map((msg) => '• $msg')
+                    .join('\n');
+
+                _showSnackBar(bulletList);
                 return;
               }
 
@@ -496,8 +501,6 @@ class _RegisterPageState extends State<RegisterPage> {
       debugPrint("REGISTER ERROR: $e");
     }
   }
-
-
 
   void _showSnackBar(String message, {bool isError = true}) {
     final snackBar = SnackBar(
