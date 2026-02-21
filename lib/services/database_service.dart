@@ -14,21 +14,98 @@ class DatabaseService {
   static const learnerTable = "learner_information_table";
   static const assessmentHeaderTable = "assessment_header";
   static const assessmentResultsTable = "assessment_results";
-  static const learnerEcdTable = 'learner_ecd_table';
+  static const learnerEcdTable = "learner_ecd_table";
 
-  // Database
+  // Status values (stored in TEXT status columns)
+  static const statusActive = "active";
+  static const statusDeactivated = "deactivated"; // dropped/cancelled
+  static const statusArchived = "archived"; // completed but old
+
   Future<Database> getDatabase() async {
     if (_database != null) return _database!;
 
     final dbPath = join(await getDatabasesPath(), "eccd_db.db");
-    print("SQLite database path: $dbPath");
 
-    _database = await openDatabase(dbPath, version: 2, onCreate: _onCreate);
+    _database = await openDatabase(
+      dbPath,
+      version: 2,
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+    );
 
     return _database!;
   }
 
-  // Create tables
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    // Non-destructive: ensure required tables exist for older DB files.
+
+    await db.execute('''
+    CREATE TABLE IF NOT EXISTS assessment_header (
+      assessment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      learner_id INTEGER NOT NULL,
+      class_id INTEGER NOT NULL,
+      assessment_type TEXT NOT NULL,
+      date_taken TEXT NOT NULL,
+      age_as_of_assessment REAL,
+      FOREIGN KEY (learner_id) REFERENCES learner_information_table(learner_id),
+      FOREIGN KEY (class_id) REFERENCES class_table(class_id)
+    )
+  ''');
+
+    await db.execute('''
+    CREATE TABLE IF NOT EXISTS assessment_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      assessment_id INTEGER NOT NULL,
+      domain TEXT NOT NULL,
+      question_index INTEGER NOT NULL,
+      answer INTEGER NOT NULL,
+      FOREIGN KEY (assessment_id) REFERENCES assessment_header(assessment_id)
+    )
+  ''');
+
+    await db.execute('''
+    CREATE TABLE IF NOT EXISTS learner_ecd_table (
+      learner_ecd_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      assessment_id INTEGER,
+
+      gmd_total INTEGER,
+      gmd_ss INTEGER,
+      gmd_interpretation TEXT,
+
+      fms_total INTEGER,
+      fms_ss INTEGER,
+      fms_interpretation TEXT,
+
+      shd_total INTEGER,
+      shd_ss INTEGER,
+      shd_interpretation TEXT,
+
+      rl_total INTEGER,
+      rl_ss INTEGER,
+      rl_interpretation TEXT,
+
+      el_total INTEGER,
+      el_ss INTEGER,
+      el_interpretation TEXT,
+
+      cd_total INTEGER,
+      cd_ss INTEGER,
+      cd_interpretation TEXT,
+
+      sed_total INTEGER,
+      sed_ss INTEGER,
+      sed_interpretation TEXT,
+
+      raw_score INTEGER,
+      summary_scaled_score INTEGER,
+      standard_score INTEGER,
+      interpretation TEXT,
+
+      FOREIGN KEY (assessment_id) REFERENCES assessment_header(assessment_id)
+    )
+  ''');
+  }
+
   Future<void> _onCreate(Database db, int version) async {
     // ------------------ TEACHER ------------------
     await db.execute('''
@@ -133,11 +210,12 @@ class DatabaseService {
       )
     ''');
 
-    // ------------------ LEARNER ECD SUMMARY ------------------
+    // ------------------ ECCD COMPUTED SUMMARY ------------------
     await db.execute('''
       CREATE TABLE learner_ecd_table (
         learner_ecd_id INTEGER PRIMARY KEY AUTOINCREMENT,
         assessment_id INTEGER,
+
         gmd_total INTEGER,
         gmd_ss INTEGER,
         gmd_interpretation TEXT,
@@ -176,49 +254,162 @@ class DatabaseService {
     ''');
   }
 
-  // ================== INSERT METHODS ==================
-  Future<void> createTeacher(Map<String, dynamic> data) async {
+  // ================== CREATE ==================
+  Future<int> createTeacher(Map<String, dynamic> data) async {
     final db = await getDatabase();
-    await db.insert(teacherTable, data);
+    return db.insert(teacherTable, data);
   }
 
-  Future<void> createAdmin(Map<String, dynamic> data) async {
+  Future<int> createAdmin(Map<String, dynamic> data) async {
     final db = await getDatabase();
-    await db.insert(adminTable, data);
+    return db.insert(adminTable, data);
   }
 
-  Future<void> createClass(Map<String, dynamic> data) async {
+  Future<int> createClass(Map<String, dynamic> data) async {
     final db = await getDatabase();
-    await db.insert(classTable, data);
+    return db.insert(classTable, data);
   }
 
-  Future<void> createLearner(Map<String, dynamic> data) async {
+  Future<int> createLearner(Map<String, dynamic> data) async {
     final db = await getDatabase();
-    await db.insert(learnerTable, data);
+    return db.insert(learnerTable, data);
   }
 
-  // ================== FETCH METHODS ==================
+  // ================== AUTH LOOKUPS ==================
+  Future<Map<String, dynamic>?> findTeacherByEmail(String email) async {
+    final db = await getDatabase();
+    final rows = await db.query(
+      teacherTable,
+      where: 'email = ?',
+      whereArgs: [email],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  Future<Map<String, dynamic>?> findAdminByEmail(String email) async {
+    final db = await getDatabase();
+    final rows = await db.query(
+      adminTable,
+      where: 'email = ?',
+      whereArgs: [email],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : rows.first;
+  }
+
   Future<List<Map<String, dynamic>>> getAllTeachers() async {
     final db = await getDatabase();
-    return db.query(teacherTable);
+    return db.query(teacherTable, orderBy: 'teacher_id DESC');
   }
 
   Future<List<Map<String, dynamic>>> getAllAdmins() async {
     final db = await getDatabase();
-    return db.query(adminTable);
+    return db.query(adminTable, orderBy: 'admin_id DESC');
   }
 
-  Future<List<Map<String, dynamic>>> getAllClasses() async {
+  // ================== CLASSES ==================
+  Future<List<Map<String, dynamic>>> getClassesByTeacherAndStatus(
+    int teacherId,
+    String status,
+  ) async {
     final db = await getDatabase();
-    return db.query(classTable);
+    return db.query(
+      classTable,
+      where: 'teacher_id = ? AND status = ?',
+      whereArgs: [teacherId, status],
+      orderBy: 'class_id DESC',
+    );
   }
 
+  Future<List<Map<String, dynamic>>> getActiveClassesByTeacher(
+    int teacherId,
+  ) async {
+    return getClassesByTeacherAndStatus(teacherId, statusActive);
+  }
+
+  Future<List<Map<String, dynamic>>> getDeactivatedClassesByTeacher(
+    int teacherId,
+  ) async {
+    return getClassesByTeacherAndStatus(teacherId, statusDeactivated);
+  }
+
+  Future<List<Map<String, dynamic>>> getArchivedClassesByTeacher(
+    int teacherId,
+  ) async {
+    return getClassesByTeacherAndStatus(teacherId, statusArchived);
+  }
+
+  Future<void> setClassStatus(int classId, String status) async {
+    final db = await getDatabase();
+    await db.update(
+      classTable,
+      {'status': status},
+      where: 'class_id = ?',
+      whereArgs: [classId],
+    );
+  }
+
+  /// When a class is deactivated/archived, you usually want learners to follow.
+  Future<void> setAllLearnersStatusForClass(int classId, String status) async {
+    final db = await getDatabase();
+    await db.update(
+      learnerTable,
+      {'status': status},
+      where: 'class_id = ?',
+      whereArgs: [classId],
+    );
+  }
+
+  // ================== LEARNERS ==================
   Future<List<Map<String, dynamic>>> getLearnersByClass(int classId) async {
     final db = await getDatabase();
     return db.query(
       learnerTable,
       where: 'class_id = ? AND status = ?',
       whereArgs: [classId, 'active'],
+      orderBy: 'surname ASC, given_name ASC',
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getLearnersByClassAndStatus(
+    int classId,
+    String status,
+  ) async {
+    final db = await getDatabase();
+    return db.query(
+      learnerTable,
+      where: 'class_id = ? AND status = ?',
+      whereArgs: [classId, status],
+      orderBy: 'surname ASC, given_name ASC',
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getActiveLearnersByClass(
+    int classId,
+  ) async {
+    return getLearnersByClassAndStatus(classId, statusActive);
+  }
+
+  Future<List<Map<String, dynamic>>> getDeactivatedLearnersByClass(
+    int classId,
+  ) async {
+    return getLearnersByClassAndStatus(classId, statusDeactivated);
+  }
+
+  Future<List<Map<String, dynamic>>> getArchivedLearnersByClass(
+    int classId,
+  ) async {
+    return getLearnersByClassAndStatus(classId, statusArchived);
+  }
+
+  Future<void> setLearnerStatus(int learnerId, String status) async {
+    final db = await getDatabase();
+    await db.update(
+      learnerTable,
+      {'status': status},
+      where: 'learner_id = ?',
+      whereArgs: [learnerId],
     );
   }
 
@@ -245,5 +436,27 @@ class DatabaseService {
         whereArgs: [email],
       );
     }
+  }
+
+  Future<Map<String, dynamic>?> getTeacherById(int teacherId) async {
+    final db = await getDatabase();
+    final rows = await db.query(
+      teacherTable,
+      where: 'teacher_id = ?',
+      whereArgs: [teacherId],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  Future<Map<String, dynamic>?> getAdminById(int adminId) async {
+    final db = await getDatabase();
+    final rows = await db.query(
+      adminTable,
+      where: 'admin_id = ?',
+      whereArgs: [adminId],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : rows.first;
   }
 }

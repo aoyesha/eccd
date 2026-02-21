@@ -1,22 +1,29 @@
 import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:eccd/util/navbar.dart';
-import '../services/database_service.dart';
+
 import '../services/csv_import_service.dart';
+import '../services/database_service.dart';
+import '../util/navbar.dart';
 import 'landing_page.dart';
 
-class CreateNewClassPage extends StatefulWidget {
-  final int teacherId;
+class TeacherNewDataSourcePage extends StatefulWidget {
+  final String role;
+  final int userId; // teacher_id
 
-  const CreateNewClassPage({Key? key, required this.teacherId})
-    : super(key: key);
+  const TeacherNewDataSourcePage({
+    Key? key,
+    required this.role,
+    required this.userId,
+  }) : super(key: key);
 
   @override
-  State<CreateNewClassPage> createState() => _CreateNewClassPageState();
+  State<TeacherNewDataSourcePage> createState() =>
+      _TeacherNewDataSourcePageState();
 }
 
-class _CreateNewClassPageState extends State<CreateNewClassPage> {
+class _TeacherNewDataSourcePageState extends State<TeacherNewDataSourcePage> {
   final _formKey = GlobalKey<FormState>();
 
   final gradeController = TextEditingController();
@@ -42,9 +49,18 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
           ? Navbar(
               selectedIndex: 1,
               onItemSelected: (_) {},
-              teacherId: widget.teacherId,
+              role: widget.role,
+              userId: widget.userId,
             )
           : null,
+      appBar: AppBar(
+        title: const Text("Create New Class"),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+        backgroundColor: const Color(0xFFE64843),
+      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           return constraints.maxWidth > 700
@@ -68,7 +84,8 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
         Navbar(
           selectedIndex: 1,
           onItemSelected: (_) {},
-          teacherId: widget.teacherId,
+          role: widget.role,
+          userId: widget.userId,
         ),
         Expanded(
           child: Center(
@@ -110,9 +127,7 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
           ),
 
           const SizedBox(height: 20),
-
           _csvPicker(),
-
           const SizedBox(height: 28),
 
           SizedBox(
@@ -130,8 +145,6 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
       ),
     );
   }
-
-  // ================= CSV PICKER =================
 
   Widget _csvPicker() {
     return Column(
@@ -156,7 +169,8 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
               children: [
                 Expanded(
                   child: Text(
-                    selectedCsvFile?.path.split('/').last ?? "Select .csv file",
+                    selectedCsvFile?.path.split(Platform.pathSeparator).last ??
+                        "Select .csv file",
                     style: TextStyle(
                       color: selectedCsvFile == null
                           ? Colors.grey
@@ -178,15 +192,12 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
       type: FileType.custom,
       allowedExtensions: ['csv'],
     );
-
     if (result != null && result.files.single.path != null) {
       setState(() {
         selectedCsvFile = File(result.files.single.path!);
       });
     }
   }
-
-  // Saving
 
   Future<void> _saveClass() async {
     if (!_formKey.currentState!.validate()) return;
@@ -206,11 +217,10 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
       'class_section': sectionController.text.trim(),
       'start_school_year': start.toString(),
       'end_school_year': end.toString(),
-      'teacher_id': widget.teacherId,
+      'teacher_id': widget.userId,
       'status': 'active',
     });
 
-    // file import (csv palang)
     if (selectedCsvFile != null) {
       try {
         await CsvImportService.importLearnersFromCsv(
@@ -224,12 +234,10 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
     }
 
     if (!mounted) return;
-
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            LandingPage(role: "Teacher", teacherId: widget.teacherId),
+        builder: (_) => LandingPage(role: widget.role, userId: widget.userId),
       ),
     );
   }

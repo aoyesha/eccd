@@ -1,190 +1,186 @@
 import 'package:flutter/material.dart';
+
 import '../view/landing_page.dart';
-import '../view/settings_page.dart';
-import '../view/teacher_new_data_source.dart';
-import '../view/my_summary_page.dart';
 import '../view/archive_page.dart';
 import '../view/historical_data_page.dart';
+import '../view/settings_page.dart';
 import '../view/login_page.dart';
+
+class AppColors {
+  static const Color maroon = Color(0xFF7A1E22);
+  static const Color maroonDark = Color(0xFF61171A);
+  static const Color maroonLight = Color(0xFF8E2A2F);
+  static const Color bg = Color(0xFFF7F4F6);
+  static const Color white = Colors.white;
+}
 
 class NavItem {
   final IconData icon;
   final String label;
+  final Widget Function() builder;
 
   const NavItem({
     required this.icon,
     required this.label,
+    required this.builder,
   });
 }
 
 class Navbar extends StatelessWidget {
   final int selectedIndex;
   final Function(int) onItemSelected;
-  final int teacherId;
+
+  /// unified identifier (teacher_id or admin_id)
+  final int userId;
+
+  /// "Teacher" | "Admin"
+  final String role;
+
+  /// Back-compat flag for older call-sites.
+  /// The navbar currently always navigates via pushReplacement.
+  final bool useNavigator;
 
   const Navbar({
     Key? key,
     required this.selectedIndex,
     required this.onItemSelected,
-    required this.teacherId,
+    required this.userId,
+    required this.role,
+    this.useNavigator = false,
   }) : super(key: key);
 
-  static const List<NavItem> items = [
-    NavItem(icon: Icons.home, label: 'Dashboard'),
-    NavItem(icon: Icons.add, label: 'Add Data Source'),
-    NavItem(icon: Icons.description, label: 'My Summary'),
-    NavItem(icon: Icons.archive, label: 'My Archive'),
-    NavItem(icon: Icons.analytics, label: 'Historical Data Analysis'),
-    NavItem(icon: Icons.settings, label: 'Account Settings'),
-  ];
+  double get _width => 280;
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 700;
+    final items = <NavItem>[
+      NavItem(
+        icon: Icons.home,
+        label: 'Dashboard',
+        builder: () => LandingPage(userId: userId, role: role),
+      ),
+      NavItem(
+        icon: Icons.archive,
+        label: 'My Archive',
+        builder: () => ArchivePage(userId: userId, role: role),
+      ),
+      NavItem(
+        icon: Icons.analytics,
+        label: 'Historical Data Analysis',
+        builder: () => HistoricalDataPage(userId: userId, role: role),
+      ),
+      NavItem(
+        icon: Icons.settings,
+        label: 'Account Settings',
+        builder: () => SettingsPage(userId: userId, role: role),
+      ),
+    ];
 
-    return isMobile
-        ? Drawer(
-      backgroundColor: const Color(0xFF8B1C23),
-      child: _content(context, isMobile: true),
-    )
-        : Container(
-      width: 260,
-      color: const Color(0xFF8B1C23),
-      child: _content(context, isMobile: false),
+    return Container(
+      width: _width,
+      color: AppColors.maroon,
+      child: SafeArea(
+        child: Column(
+          children: [
+            const SizedBox(height: 24),
+            Container(
+              width: 88,
+              height: 88,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.person, size: 44, color: Colors.blue),
+            ),
+            const SizedBox(height: 16),
 
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                itemCount: items.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, i) {
+                  final isSelected = i == selectedIndex;
+                  return _NavTile(
+                    icon: items[i].icon,
+                    label: items[i].label,
+                    selected: isSelected,
+                    onTap: () {
+                      onItemSelected(i);
 
-    );
-
-
-  }
-  Widget _content(BuildContext context, {required bool isMobile}) {
-
-
-    return Column(
-
-      children: [
-        const SizedBox(height: 40),
-        const CircleAvatar(
-          radius: 36,
-          backgroundColor: Colors.white,
-          child: Icon(Icons.person, size: 42, color: Colors.blue),
-        ),
-        const SizedBox(height: 40),
-        Expanded(
-          child: ListView(
-            children: items.asMap().entries.map((entry) {
-              final index = entry.key;
-              final item = entry.value;
-
-              return ListTile(
-                leading: Icon(item.icon, color: Colors.white),
-                title: Text(
-                  item.label,
-                  style: const TextStyle(color: Colors.white),
-                ),
-                selected: index == selectedIndex,
-                selectedTileColor: const Color(0xFF6F151A),
-                onTap: () {
-                  onItemSelected(index);
-
-                  if (isMobile) {
-                    Navigator.pop(context);
-                  }
-
-                  switch (index) {
-                    case 0:
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => LandingPage(
-                            role: "Teacher",
-                            teacherId: teacherId,
-                          ),
-                        ),
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (_) => items[i].builder()),
                       );
-                      break;
-
-                    case 1:
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              CreateNewClassPage(teacherId: teacherId),
-                        ),
-                      );
-                      break;
-
-                    case 2:
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => SummaryPage(teacherId: teacherId),
-                        ),
-                      );
-                      break;
-
-                    case 3:
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ArchivePage(teacherId: teacherId),
-                        ),
-                      );
-                      break;
-
-                    case 4:
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              HistoricalDataPage(teacherId: teacherId),
-                        ),
-                      );
-                      break;
-
-                    case 5:
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => SettingsPage(
-                            userId: teacherId,
-                            role: "Teacher",
-                            email: "",
-                          ),
-                        ),
-                      );
-                      break;
-                  }
+                    },
+                  );
                 },
-              );
-            }).toList(),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 24),
-          child: SizedBox(
-            width: 160,
-            height: 40,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SizedBox(
+                height: 48,
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.white,
+                    foregroundColor: Colors.black,
+                    shape: const StadiumBorder(),
+                    elevation: 0,
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const LoginPage()),
+                      (_) => false,
+                    );
+                  },
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Logout'),
                 ),
               ),
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginPage()),
-                );
-              },
-              icon: const Icon(Icons.logout),
-              label: const Text('Log out'),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
+    );
+  }
+}
+
+class _NavTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _NavTile({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.maroonDark : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(label, style: const TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

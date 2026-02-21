@@ -73,10 +73,7 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 24),
                     _title(),
                     const SizedBox(height: 40),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: _form(),
-                    ),
+                    Align(alignment: Alignment.centerLeft, child: _form()),
                   ],
                 ),
               ),
@@ -116,9 +113,7 @@ class _LoginPageState extends State<LoginPage> {
               flex: 4,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(width: 420, child: _form()),
-                ],
+                children: [SizedBox(width: 420, child: _form())],
               ),
             ),
           ],
@@ -230,8 +225,10 @@ class _LoginPageState extends State<LoginPage> {
         fillColor: Colors.white,
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey.shade400),
-        contentPadding:
-        const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 14,
+          horizontal: 16,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
@@ -255,8 +252,10 @@ class _LoginPageState extends State<LoginPage> {
           ),
           onPressed: () => setState(() => obscure = !obscure),
         ),
-        contentPadding:
-        const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 14,
+          horizontal: 16,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
@@ -287,8 +286,9 @@ class _LoginPageState extends State<LoginPage> {
         Radio<String>(
           value: value,
           groupValue: role,
-          fillColor:
-          MaterialStateProperty.resolveWith((states) => Colors.white),
+          fillColor: MaterialStateProperty.resolveWith(
+            (states) => Colors.white,
+          ),
           onChanged: (v) => setState(() => role = v!),
         ),
         Text(value, style: const TextStyle(color: Colors.white)),
@@ -305,8 +305,7 @@ class _LoginPageState extends State<LoginPage> {
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.black,
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         onPressed: () async {
           final email = emailController.text.trim();
@@ -329,13 +328,13 @@ class _LoginPageState extends State<LoginPage> {
           if (role == 'Teacher') {
             final teachers = await db.getAllTeachers();
             user = teachers.firstWhere(
-                  (t) => t['email'] == email,
+              (t) => t['email'] == email,
               orElse: () => {},
             );
           } else {
             final admins = await db.getAllAdmins();
             user = admins.firstWhere(
-                  (a) => a['email'] == email,
+              (a) => a['email'] == email,
               orElse: () => {},
             );
           }
@@ -345,10 +344,11 @@ class _LoginPageState extends State<LoginPage> {
           } else if (user['password'] != password) {
             _showErrorSnackBar("Invalid credentials");
           } else {
-            Get.off(() => LandingPage(
-              role: role,
-              teacherId: user['teacher_id'],
-            ));
+            final int userId = role == 'Teacher'
+                ? (user['teacher_id'] as int)
+                : (user['admin_id'] as int);
+
+            Get.off(() => LandingPage(role: role, userId: userId));
           }
         },
         child: const Text(
@@ -373,16 +373,10 @@ class _LoginPageState extends State<LoginPage> {
 
     if (role == 'Teacher') {
       final teachers = await db.getAllTeachers();
-      user = teachers.firstWhere(
-            (t) => t['email'] == email,
-        orElse: () => {},
-      );
+      user = teachers.firstWhere((t) => t['email'] == email, orElse: () => {});
     } else {
       final admins = await db.getAllAdmins();
-      user = admins.firstWhere(
-            (a) => a['email'] == email,
-        orElse: () => {},
-      );
+      user = admins.firstWhere((a) => a['email'] == email, orElse: () => {});
     }
 
     if (user.isEmpty) {
@@ -413,8 +407,7 @@ class _LoginPageState extends State<LoginPage> {
             TextField(
               controller: newPasswordController,
               obscureText: true,
-              decoration:
-              const InputDecoration(labelText: "New Password"),
+              decoration: const InputDecoration(labelText: "New Password"),
             ),
           ],
         ),
@@ -452,22 +445,17 @@ class _LoginPageState extends State<LoginPage> {
         content: Row(
           children: [
             Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(color: Colors.white),
-              ),
+              child: Text(message, style: const TextStyle(color: Colors.white)),
             ),
             GestureDetector(
-              onTap: () =>
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+              onTap: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
               child: const Icon(Icons.close, color: Colors.white),
             ),
           ],
         ),
         backgroundColor: Colors.black,
         behavior: SnackBarBehavior.floating,
-        shape:
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }

@@ -1,145 +1,69 @@
 import 'package:flutter/material.dart';
-import '../util/navbar.dart';
+
 import '../services/database_service.dart';
-import '../main.dart';
+import '../util/navbar.dart';
 import 'change_password_page.dart';
 
 class SettingsPage extends StatefulWidget {
   final int userId;
   final String role;
 
-  const SettingsPage({
-    Key? key,
-    required this.userId,
-    required this.role, required String email,
-  }) : super(key: key);
+  const SettingsPage({Key? key, required this.userId, required this.role})
+    : super(key: key);
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  String email = "";
+  Map<String, dynamic>? _user;
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadEmail();
+    _load();
   }
 
-  Future<void> _loadEmail() async {
-    final db = DatabaseService.instance;
+  Future<void> _load() async {
+    setState(() => _loading = true);
 
-    if (widget.role == "Teacher") {
-      final teachers = await db.getAllTeachers();
-      final user = teachers.firstWhere(
-            (t) => t['teacher_id'] == widget.userId,
-        orElse: () => {},
-      );
-      email = user['email'] ?? "";
+    Map<String, dynamic>? row;
+    if (widget.role == 'Teacher') {
+      row = await DatabaseService.instance.getTeacherById(widget.userId);
     } else {
-      final admins = await db.getAllAdmins();
-      final user = admins.firstWhere(
-            (a) => a['admin_id'] == widget.userId,
-        orElse: () => {},
-      );
-      email = user['email'] ?? "";
+      row = await DatabaseService.instance.getAdminById(widget.userId);
     }
 
-    setState(() {});
+    if (!mounted) return;
+    setState(() {
+      _user = row;
+      _loading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 700;
-
     return Scaffold(
-      drawer: isMobile
-          ? Navbar(
-        selectedIndex: 5,
-        onItemSelected: (_) {},
-        teacherId: widget.userId,
-      )
-          : null,
+      backgroundColor: AppColors.bg,
       body: Row(
         children: [
-          if (!isMobile)
-            Navbar(
-              selectedIndex: 5,
-              onItemSelected: (_) {},
-              teacherId: widget.userId,
-            ),
+          Navbar(
+            selectedIndex: 3,
+            onItemSelected: (_) {},
+            userId: widget.userId,
+            role: widget.role,
+          ),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Account Settings",
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 24),
-
-                  _card(
-                    title: "Email",
-                    child: Text(
-                      email.isEmpty ? "Loading..." : email,
-                      style: const TextStyle(fontSize: 15),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  _card(
-                    title: "Change Password",
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                      ),
-                      onPressed: email.isEmpty
-                          ? null
-                          : () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ChangePasswordPage(
-                              userId: widget.userId,
-                              role: widget.role,
-                              email: email,
-                            ),
-                          ),
-                        );
-                      },
-                      child: const Text(
-                        "Change Password",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  _card(
-                    title: "Font Size",
-                    child: ValueListenableBuilder<double>(
-                      valueListenable: MyApp.fontScale,
-                      builder: (context, value, _) {
-                        return Slider(
-                          value: value,
-                          min: 0.8,
-                          max: 1.3,
-                          divisions: 5,
-                          label: value.toStringAsFixed(1),
-                          onChanged: (v) {
-                            MyApp.fontScale.value = v;
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
+            child: Column(
+              children: [
+                _appBar(context),
+                Expanded(
+                  child: _loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _content(),
+                ),
+              ],
             ),
           ),
         ],
@@ -147,27 +71,175 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _card({required String title, required Widget child}) {
+  Widget _appBar(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 6),
+      height: 72,
+      color: AppColors.maroon,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).maybePop(),
+          ),
+          const Text(
+            'Account Settings',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+
+  Widget _content() {
+    final u = _user ?? {};
+    final name = (widget.role == 'Teacher')
+        ? (u['teacher_name'] ?? '—')
+        : (u['admin_name'] ?? '—');
+
+    return Padding(
+      padding: const EdgeInsets.all(18),
+      child: ListView(
         children: [
-          Text(
-            title,
-            style:
-            const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Profile',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 12),
+                  _kv('Role', widget.role),
+                  _kv('Name', '$name'),
+                  _kv('Email', '${u['email'] ?? '—'}'),
+                  _kv('School', '${u['school'] ?? '—'}'),
+                  _kv('District', '${u['district'] ?? '—'}'),
+                  _kv('Division', '${u['division'] ?? '—'}'),
+                  _kv('Region', '${u['region'] ?? '—'}'),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(height: 12),
-          child,
+          const SizedBox(height: 14),
+
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              children: [
+                _tile(
+                  icon: Icons.lock,
+                  title: 'Change Password',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ChangePasswordPage(
+                          userId: widget.userId,
+                          role: widget.role,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                _divider(),
+                _tile(
+                  icon: Icons.privacy_tip,
+                  title: 'Privacy Policy',
+                  onTap: () => _showDialog(
+                    'Privacy Policy',
+                    'Add your privacy policy text here.',
+                  ),
+                ),
+                _divider(),
+                _tile(
+                  icon: Icons.description,
+                  title: 'Terms & Conditions',
+                  onTap: () => _showDialog(
+                    'Terms & Conditions',
+                    'Add your terms text here.',
+                  ),
+                ),
+                _divider(),
+                _tile(
+                  icon: Icons.help_outline,
+                  title: 'FAQ',
+                  onTap: () => _showDialog('FAQ', 'Add your FAQ here.'),
+                ),
+                _divider(),
+                _tile(
+                  icon: Icons.contact_mail,
+                  title: 'Contact Us',
+                  onTap: () => _showDialog(
+                    'Contact Us',
+                    'Email: example@deped.gov.ph\nPhone: (000) 000-0000',
+                  ),
+                ),
+                _divider(),
+                _tile(
+                  icon: Icons.groups,
+                  title: 'Developers',
+                  onTap: () => _showDialog(
+                    'Developers',
+                    '• Vincent Yuri Jose\n• (Add other devs)\n\n(Replace this list with your team.)',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _divider() => const Divider(height: 1);
+
+  Widget _tile({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(leading: Icon(icon), title: Text(title), onTap: onTap);
+  }
+
+  Widget _kv(String k, String v) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(k, style: const TextStyle(fontWeight: FontWeight.w600)),
+          ),
+          Expanded(child: Text(v)),
+        ],
+      ),
+    );
+  }
+
+  void _showDialog(String title, String content) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: Text(content),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
         ],
       ),
     );

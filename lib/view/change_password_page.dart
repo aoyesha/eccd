@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:eccd/util/navbar.dart';
+
 import '../services/database_service.dart';
+import '../util/navbar.dart';
 
 class ChangePasswordPage extends StatefulWidget {
-  final int userId;
   final String role;
-  final String email;
+  final int userId;
 
-  const ChangePasswordPage({
-    Key? key,
-    required this.userId,
-    required this.role,
-    required this.email,
-  }) : super(key: key);
+  const ChangePasswordPage({Key? key, required this.role, required this.userId})
+    : super(key: key);
 
   @override
   State<ChangePasswordPage> createState() => _ChangePasswordPageState();
@@ -21,192 +17,134 @@ class ChangePasswordPage extends StatefulWidget {
 class _ChangePasswordPageState extends State<ChangePasswordPage> {
   final _formKey = GlobalKey<FormState>();
 
-  final currentPasswordController = TextEditingController();
-  final newPasswordController = TextEditingController();
-  final confirmPasswordController = TextEditingController();
+  final emailController = TextEditingController();
+  final newPassController = TextEditingController();
+  final confirmController = TextEditingController();
 
-  bool obscureCurrent = true;
-  bool obscureNew = true;
-  bool obscureConfirm = true;
+  bool _busy = false;
 
   @override
   void dispose() {
-    currentPasswordController.dispose();
-    newPasswordController.dispose();
-    confirmPasswordController.dispose();
+    emailController.dispose();
+    newPassController.dispose();
+    confirmController.dispose();
     super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _busy = true);
+
+    try {
+      await DatabaseService.instance.updatePassword(
+        role: widget.role,
+        email: emailController.text.trim(),
+        newPassword: newPassController.text.trim(),
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Password updated.")));
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Update failed: $e")));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 700;
-
     return Scaffold(
-      drawer: isMobile
+      drawer: MediaQuery.of(context).size.width < 700
           ? Navbar(
-        selectedIndex: 5,
-        onItemSelected: (_) {},
-        teacherId: widget.userId,
-      )
-          : null,
-      body: Row(
-        children: [
-          if (!isMobile)
-            Navbar(
               selectedIndex: 5,
               onItemSelected: (_) {},
-              teacherId: widget.userId,
+              role: widget.role,
+              userId: widget.userId,
+            )
+          : null,
+      appBar: AppBar(
+        title: const Text("Change Password"),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+        backgroundColor: const Color(0xFFE64843),
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 700;
+
+          final form = Padding(
+            padding: const EdgeInsets.all(24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: emailController,
+                    decoration: const InputDecoration(labelText: "Email"),
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? "Required" : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: newPassController,
+                    decoration: const InputDecoration(
+                      labelText: "New Password",
+                    ),
+                    obscureText: true,
+                    validator: (v) =>
+                        v == null || v.trim().length < 6 ? "Min 6 chars" : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: confirmController,
+                    decoration: const InputDecoration(
+                      labelText: "Confirm Password",
+                    ),
+                    obscureText: true,
+                    validator: (v) => v != newPassController.text
+                        ? "Passwords do not match"
+                        : null,
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: _busy ? null : _save,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE64843),
+                      ),
+                      child: Text(_busy ? "Saving..." : "Save"),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          Expanded(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(32),
-                child: SizedBox(
-                  width: 420,
-                  child: _form(),
+          );
+
+          return Row(
+            children: [
+              if (!isMobile)
+                Navbar(
+                  selectedIndex: 5,
+                  onItemSelected: (_) {},
+                  role: widget.role,
+                  userId: widget.userId,
                 ),
-              ),
-            ),
-          ),
-        ],
+              Expanded(child: SingleChildScrollView(child: form)),
+            ],
+          );
+        },
       ),
     );
-  }
-
-  Widget _form() {
-    return Form(
-      key: _formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Change Password",
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 24),
-
-          _readonlyField("Email", widget.email),
-          const SizedBox(height: 18),
-
-          _passwordField(
-            "Current Password",
-            currentPasswordController,
-            obscureCurrent,
-                () => setState(() => obscureCurrent = !obscureCurrent),
-          ),
-          _passwordField(
-            "New Password",
-            newPasswordController,
-            obscureNew,
-                () => setState(() => obscureNew = !obscureNew),
-          ),
-          _passwordField(
-            "Confirm New Password",
-            confirmPasswordController,
-            obscureConfirm,
-                () => setState(() => obscureConfirm = !obscureConfirm),
-          ),
-
-          const SizedBox(height: 28),
-
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ),
-              onPressed: _handleChangePassword,
-              child: const Text(
-                "Update Password",
-                style: TextStyle(color: Colors.white, fontSize: 14),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _readonlyField(String label, String value) {
-    return TextFormField(
-      initialValue: value,
-      enabled: false,
-      decoration: InputDecoration(
-        labelText: label,
-        filled: true,
-        fillColor: Colors.grey.shade100,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-        ),
-        disabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-      ),
-    );
-  }
-
-  Widget _passwordField(
-      String label,
-      TextEditingController controller,
-      bool obscure,
-      VoidCallback toggle,
-      ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: TextFormField(
-        controller: controller,
-        obscureText: obscure,
-        validator: (v) => v == null || v.isEmpty ? "Required" : null,
-        decoration: InputDecoration(
-          labelText: label,
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-          ),
-          suffixIcon: IconButton(
-            icon: Icon(
-              obscure ? Icons.visibility_off : Icons.visibility,
-              size: 20,
-            ),
-            onPressed: toggle,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _handleChangePassword() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    if (newPasswordController.text != confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Passwords do not match")),
-      );
-      return;
-    }
-
-    await DatabaseService.instance.updatePassword(
-      role: widget.role,
-      email: widget.email,
-      newPassword: newPasswordController.text.trim(),
-    );
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Password updated successfully"),
-        backgroundColor: Colors.green,
-      ),
-    );
-
-    Navigator.pop(context);
   }
 }

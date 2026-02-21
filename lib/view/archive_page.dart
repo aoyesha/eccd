@@ -1,192 +1,310 @@
 import 'package:flutter/material.dart';
-import 'package:eccd/util/navbar.dart';
-import '../util/data_source_tile.dart';
+
+import '../services/database_service.dart';
+import '../util/navbar.dart';
+import 'teacher_class_list.dart';
 
 class ArchivePage extends StatefulWidget {
-  final int teacherId;
+  final String role;
+  final int userId;
 
-  const ArchivePage({Key? key, required this.teacherId}) : super(key: key);
+  const ArchivePage({Key? key, required this.role, required this.userId})
+    : super(key: key);
 
   @override
   State<ArchivePage> createState() => _ArchivePageState();
 }
 
-class _ArchivePageState extends State<ArchivePage> {
-  Future<List<Map<String, String>>> _fetchArchiveFromDb() async {
-    return [];
+class _ArchivePageState extends State<ArchivePage>
+    with TickerProviderStateMixin {
+  late final TabController _topTab;
+  late final TabController _classTab;
+  late final TabController _learnerTab;
+
+  @override
+  void initState() {
+    super.initState();
+    _topTab = TabController(length: 2, vsync: this);
+    _classTab = TabController(length: 3, vsync: this);
+    _learnerTab = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _topTab.dispose();
+    _classTab.dispose();
+    _learnerTab.dispose();
+    super.dispose();
+  }
+
+  Future<List<Map<String, dynamic>>> _classes(String status) async {
+    if (widget.role != "Teacher") return [];
+    return DatabaseService.instance.getClassesByTeacherAndStatus(
+      widget.userId,
+      status,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _learnersAllTeacher(String status) async {
+    if (widget.role != "Teacher") return [];
+    final db = await DatabaseService.instance.getDatabase();
+
+    // get all teacher classes (any status) then query learners by status across them
+    final classes = await db.query(
+      DatabaseService.classTable,
+      where: 'teacher_id = ?',
+      whereArgs: [widget.userId],
+    );
+
+    final classIds = classes
+        .map((e) => e['class_id'])
+        .whereType<int>()
+        .toList();
+    if (classIds.isEmpty) return [];
+
+    // WHERE class_id IN (...) AND status = ?
+    final placeholders = List.filled(classIds.length, '?').join(',');
+    final rows = await db.rawQuery(
+      'SELECT * FROM ${DatabaseService.learnerTable} '
+      'WHERE class_id IN ($placeholders) AND status = ? '
+      'ORDER BY class_id DESC, surname ASC, given_name ASC',
+      [...classIds, status],
+    );
+    return rows;
+  }
+
+  Future<void> _setClassStatus(int classId, String status) async {
+    await DatabaseService.instance.setClassStatus(classId, status);
+    await DatabaseService.instance.setAllLearnersStatusForClass(
+      classId,
+      status,
+    );
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  Future<void> _setLearnerStatus(int learnerId, String status) async {
+    await DatabaseService.instance.setLearnerStatus(learnerId, status);
+    if (!mounted) return;
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 700;
+
     return Scaffold(
-      drawer: MediaQuery.of(context).size.width < 700
-          ? Navbar(selectedIndex: 0, onItemSelected: (_) {}, teacherId: widget.teacherId)
+      drawer: isMobile
+          ? Navbar(
+              selectedIndex: 1,
+              onItemSelected: (_) {},
+              role: widget.role,
+              userId: widget.userId,
+            )
           : null,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return constraints.maxWidth > 700 ? _desktopLayout() : _mobileLayout();
-        },
+      appBar: AppBar(
+        title: const Text("My Archive"),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+        backgroundColor: const Color(0xFFE64843),
+        bottom: TabBar(
+          controller: _topTab,
+          tabs: const [
+            Tab(text: "Classes"),
+            Tab(text: "Learners"),
+          ],
+        ),
+      ),
+      body: Row(
+        children: [
+          if (!isMobile)
+            Navbar(
+              selectedIndex: 1,
+              onItemSelected: (_) {},
+              role: widget.role,
+              userId: widget.userId,
+            ),
+          Expanded(
+            child: TabBarView(
+              controller: _topTab,
+              children: [_classesPane(), _learnersPane()],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _mobileLayout() {
-    return SingleChildScrollView(child: _content(isMobile: true));
-  }
-
-  Widget _desktopLayout() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _classesPane() {
+    return Column(
       children: [
-        Navbar(selectedIndex: 0, onItemSelected: (_) {}, teacherId: widget.teacherId),
-        Expanded(child: SingleChildScrollView(child: _content(isMobile: false))),
+        TabBar(
+          controller: _classTab,
+          labelColor: Colors.black,
+          indicatorColor: const Color(0xFFE64843),
+          tabs: const [
+            Tab(text: "Active"),
+            Tab(text: "Deactivated"),
+            Tab(text: "Archived"),
+          ],
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _classTab,
+            children: [
+              _classList(DatabaseService.statusActive),
+              _classList(DatabaseService.statusDeactivated),
+              _classList(DatabaseService.statusArchived),
+            ],
+          ),
+        ),
       ],
     );
   }
 
-  Widget _content({required bool isMobile}) {
-    return FutureBuilder<List<Map<String, String>>>(
-      future: _fetchArchiveFromDb(),
+  Widget _classList(String status) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _classes(status),
       builder: (context, snapshot) {
-        final data = snapshot.data ?? [];
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final list = snapshot.data ?? [];
+        if (list.isEmpty) return Center(child: Text("No classes in $status."));
 
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            isMobile ? 16 : 24,
-            isMobile ? 12 : 12,
-            isMobile ? 16 : 24,
-            isMobile ? 24 : 24,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Early Childhood Development Checklist",
-                maxLines: 2,
-                style: TextStyle(fontSize: 46, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              const Divider(),
-              const SizedBox(height: 12),
+        return ListView.separated(
+          padding: const EdgeInsets.all(12),
+          itemCount: list.length,
+          separatorBuilder: (_, __) => const Divider(),
+          itemBuilder: (context, i) {
+            final c = list[i];
+            final id = c['class_id'] as int;
+            final level = (c['class_level'] ?? '').toString();
+            final section = (c['class_section'] ?? '').toString();
+            final year = "${c['start_school_year']}-${c['end_school_year']}";
 
-              isMobile
-                  ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            return ListTile(
+              leading: const Icon(Icons.class_),
+              title: Text("$level - $section"),
+              subtitle: Text("SY: $year • Status: $status"),
+              onTap: status == DatabaseService.statusActive
+                  ? () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ClassListPage(
+                            role: widget.role,
+                            userId: widget.userId,
+                            classId: id,
+                            gradeLevel: level,
+                            section: section,
+                          ),
+                        ),
+                      ).then((_) => setState(() {}));
+                    }
+                  : null,
+              trailing: Wrap(
+                spacing: 8,
                 children: [
-                  _archiveTitle(isMobile),
-                  const SizedBox(height: 10),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: _yearControls(isMobile),
-                  ),
-                ],
-              )
-                  : Row(
-                children: [
-                  _archiveTitle(isMobile),
-                  const Spacer(),
-                  _yearControls(isMobile),
+                  if (status == DatabaseService.statusActive) ...[
+                    IconButton(
+                      tooltip: "Deactivate",
+                      icon: const Icon(Icons.pause_circle_outline),
+                      onPressed: () => _setClassStatus(
+                        id,
+                        DatabaseService.statusDeactivated,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: "Archive",
+                      icon: const Icon(Icons.archive_outlined),
+                      onPressed: () =>
+                          _setClassStatus(id, DatabaseService.statusArchived),
+                    ),
+                  ] else ...[
+                    IconButton(
+                      tooltip: status == DatabaseService.statusArchived
+                          ? "Unarchive"
+                          : "Reactivate",
+                      icon: const Icon(Icons.play_circle_outline),
+                      onPressed: () =>
+                          _setClassStatus(id, DatabaseService.statusActive),
+                    ),
+                  ],
                 ],
               ),
-
-              const SizedBox(height: 16),
-
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: isMobile ? 2 : 5,
-                  crossAxisSpacing: isMobile ? 12 : 16,
-                  mainAxisSpacing: isMobile ? 12 : 16,
-                  childAspectRatio: isMobile ? 140 / 200 : 140 / 175,
-                ),
-                itemCount: data.length,
-                itemBuilder: (context, index) {
-                  final item = data[index];
-                  return DataSourceTile(
-                    section: item["section"] ?? "",
-                    schoolYear: item["year"] ?? "",
-                    level: "",
-                    color: const Color(0xFFF2F2F2),
-                    onTap: () {},
-                    onActivate: () {},
-                    onDeactivate: () {},
-                  );
-                },
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
   }
 
-  Widget _archiveTitle(bool isMobile) {
+  Widget _learnersPane() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "My Archive",
-          style: TextStyle(
-            fontSize: isMobile ? 16 : 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          "Archived Data Sources",
-          style: TextStyle(
-            fontSize: isMobile ? 11 : 12,
-            color: Colors.grey,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _yearControls(bool isMobile) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Text("Select School Year", style: TextStyle(fontSize: isMobile ? 11 : 12)),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            _yearField("Start Year", isMobile),
-            const SizedBox(width: 8),
-            _yearField("End Year", isMobile),
+        TabBar(
+          controller: _learnerTab,
+          labelColor: Colors.black,
+          indicatorColor: const Color(0xFFE64843),
+          tabs: const [
+            Tab(text: "Active"),
+            Tab(text: "Deactivated"),
+            Tab(text: "Archived"),
           ],
         ),
+        Expanded(
+          child: TabBarView(
+            controller: _learnerTab,
+            children: [
+              _learnerList(DatabaseService.statusActive),
+              _learnerList(DatabaseService.statusDeactivated),
+              _learnerList(DatabaseService.statusArchived),
+            ],
+          ),
+        ),
       ],
     );
   }
 
-  Widget _yearField(String hint, bool isMobile) {
-    return SizedBox(
-      width: isMobile ? 100 : 120,
-      height: isMobile ? 34 : 36,
-      child: TextField(
-        enabled: false,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(fontSize: isMobile ? 11 : 12),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: BorderSide(color: Colors.grey.shade300),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: BorderSide(color: Colors.grey.shade300),
-          ),
-          disabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: BorderSide(color: Colors.grey.shade300),
-          ),
-        ),
-      ),
+  Widget _learnerList(String status) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _learnersAllTeacher(status),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final list = snapshot.data ?? [];
+        if (list.isEmpty) return Center(child: Text("No learners in $status."));
+
+        return ListView.separated(
+          padding: const EdgeInsets.all(12),
+          itemCount: list.length,
+          separatorBuilder: (_, __) => const Divider(),
+          itemBuilder: (context, i) {
+            final l = list[i];
+            final id = l['learner_id'] as int;
+            final classId = l['class_id'] as int?;
+            final name = "${l['surname'] ?? ''}, ${l['given_name'] ?? ''}";
+
+            return ListTile(
+              leading: const Icon(Icons.person),
+              title: Text(name),
+              subtitle: Text("Class ID: ${classId ?? '-'} • Status: $status"),
+              trailing: IconButton(
+                tooltip: status == DatabaseService.statusArchived
+                    ? "Unarchive"
+                    : "Reactivate",
+                icon: const Icon(Icons.play_circle_outline),
+                onPressed: () =>
+                    _setLearnerStatus(id, DatabaseService.statusActive),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

@@ -1,24 +1,27 @@
 import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:eccd/util/navbar.dart';
-import '../services/database_service.dart';
-import '../services/csv_import_service.dart';
+
+import '../util/navbar.dart';
 import 'landing_page.dart';
 
-class CreateNewClassPage extends StatefulWidget {
-  final int teacherId;
+class AdminNewDataSourcePage extends StatefulWidget {
+  final String role;
+  final int userId; // admin_id
 
-  const CreateNewClassPage({Key? key, required this.teacherId})
-      : super(key: key);
+  const AdminNewDataSourcePage({
+    Key? key,
+    required this.role,
+    required this.userId,
+  }) : super(key: key);
 
   @override
-  State<CreateNewClassPage> createState() => _CreateNewClassPageState();
+  State<AdminNewDataSourcePage> createState() => _AdminNewDataSourcePageState();
 }
 
-class _CreateNewClassPageState extends State<CreateNewClassPage> {
+class _AdminNewDataSourcePageState extends State<AdminNewDataSourcePage> {
   final _formKey = GlobalKey<FormState>();
-
   final institutionController = TextEditingController();
 
   File? selectedCsvFile;
@@ -34,11 +37,20 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
     return Scaffold(
       drawer: MediaQuery.of(context).size.width < 700
           ? Navbar(
-        selectedIndex: 1,
-        onItemSelected: (_) {},
-        teacherId: widget.teacherId,
-      )
+              selectedIndex: 1,
+              onItemSelected: (_) {},
+              role: widget.role,
+              userId: widget.userId,
+            )
           : null,
+      appBar: AppBar(
+        title: const Text("Create New Data Source"),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+        backgroundColor: const Color(0xFFE64843),
+      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           return constraints.maxWidth > 700
@@ -62,7 +74,8 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
         Navbar(
           selectedIndex: 1,
           onItemSelected: (_) {},
-          teacherId: widget.teacherId,
+          role: widget.role,
+          userId: widget.userId,
         ),
         Expanded(
           child: Center(
@@ -91,11 +104,8 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
           const SizedBox(height: 32),
 
           _field("Institution *", institutionController),
-
           const SizedBox(height: 20),
-
           _csvPicker(),
-
           const SizedBox(height: 28),
 
           SizedBox(
@@ -105,7 +115,7 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFE64843),
               ),
-              onPressed: _saveClass,
+              onPressed: _saveDataSource,
               child: const Text("Save", style: TextStyle(color: Colors.white)),
             ),
           ),
@@ -114,14 +124,12 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
     );
   }
 
-  // ================= CSV PICKER =================
-
   Widget _csvPicker() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          "Import File (CSV only)",
+          "Import Summary CSV (from lower office)",
           style: TextStyle(fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 6),
@@ -139,7 +147,8 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
               children: [
                 Expanded(
                   child: Text(
-                    selectedCsvFile?.path.split('/').last ?? "Select .csv file",
+                    selectedCsvFile?.path.split(Platform.pathSeparator).last ??
+                        "Select .csv file",
                     style: TextStyle(
                       color: selectedCsvFile == null
                           ? Colors.grey
@@ -161,7 +170,6 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
       type: FileType.custom,
       allowedExtensions: ['csv'],
     );
-
     if (result != null && result.files.single.path != null) {
       setState(() {
         selectedCsvFile = File(result.files.single.path!);
@@ -169,10 +177,23 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
     }
   }
 
-  // Saving
+  Future<void> _saveDataSource() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (selectedCsvFile == null) {
+      _snack("Please attach a CSV file.");
+      return;
+    }
 
-  Future<void> _saveClass() async {
+    // Admin dataset ingestion requires DB tables not yet in current schema.
+    _snack("Admin ingestion not wired yet (tables pending).");
 
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LandingPage(role: widget.role, userId: widget.userId),
+      ),
+    );
   }
 
   Widget _field(String label, TextEditingController c) {
@@ -181,18 +202,13 @@ class _CreateNewClassPageState extends State<CreateNewClassPage> {
       child: TextFormField(
         controller: c,
         validator: (v) => v == null || v.trim().isEmpty ? "Required" : null,
-        decoration: _decoration(label),
+        decoration: InputDecoration(
+          labelText: label,
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+        ),
       ),
-    );
-  }
-
-
-  InputDecoration _decoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
     );
   }
 
