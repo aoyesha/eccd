@@ -51,8 +51,8 @@ class _TeacherClassesPageState extends State<TeacherClassesPage> {
   Widget build(BuildContext context) {
     final teacherId = context.watch<AuthService>().session!.userId;
     final isMobile = MediaQuery.of(context).size.width < 700;
-    final cardWidth = isMobile ? 170.0 : 260.0;
-    final cardHeight = isMobile ? 190.0 : 330.0;
+    final cardWidth = isMobile ? double.infinity : 260.0;
+    final cardHeight = isMobile ? 135.0 : 330.0;
 
     return Column(
       children: [
@@ -84,6 +84,38 @@ class _TeacherClassesPageState extends State<TeacherClassesPage> {
               }
               final classes = snapshot.data!;
 
+              if (isMobile) {
+                return ListView(
+                  padding: const EdgeInsets.all(12),
+                  children: [
+                    ...classes.map((c) {
+                      final classId = c['id'] as int;
+                      final grade = c['grade'] as String;
+                      final section = c['section'] as String;
+                      final sy = c['school_year'] as String;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: _NotebookCard(
+                          width: cardWidth,
+                          height: cardHeight,
+                          color: _pastelForClassId(classId),
+                          schoolYear: sy,
+                          grade: grade,
+                          section: section,
+                          onOpen: () => _openClass(c),
+                        ),
+                      );
+                    }),
+                    _AddClassCard(
+                      width: cardWidth,
+                      height: cardHeight,
+                      onTap: _openAddClass,
+                    ),
+                  ],
+                );
+              }
+
+              // ================= DESKTOP GRID =================
               final items = <Widget>[
                 ...classes.map((c) {
                   final classId = c['id'] as int;
@@ -103,9 +135,7 @@ class _TeacherClassesPageState extends State<TeacherClassesPage> {
                 _AddClassCard(
                   width: cardWidth,
                   height: cardHeight,
-                  onTap: () {
-                    _openAddClass();
-                  },
+                  onTap: _openAddClass,
                 ),
               ];
 
@@ -114,8 +144,6 @@ class _TeacherClassesPageState extends State<TeacherClassesPage> {
                 child: Align(
                   alignment: Alignment.topLeft,
                   child: Wrap(
-                    alignment: WrapAlignment.start,
-                    runAlignment: WrapAlignment.start,
                     spacing: 16,
                     runSpacing: 16,
                     children: items,
@@ -216,15 +244,15 @@ class _NotebookCard extends StatelessWidget {
         children: [
           Positioned(
             left: 6,
-            top: 18,
-            bottom: 18,
+            top: 10,
+            bottom: 10,
             child: Container(
-              width: 26,
+              width: 24,
               decoration: const BoxDecoration(
                 color: Color(0xFF1E1E1E),
                 borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  bottomLeft: Radius.circular(20),
+                  topLeft: Radius.circular(16),
+                  bottomLeft: Radius.circular(16),
                 ),
               ),
             ),
@@ -235,9 +263,9 @@ class _NotebookCard extends StatelessWidget {
               color: color,
               child: InkWell(
                 onTap: onOpen,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(18),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -252,15 +280,15 @@ class _NotebookCard extends StatelessWidget {
                       Text(
                         'Grade $grade',
                         style: const TextStyle(
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
                       Text(
                         section,
                         style: const TextStyle(
-                          fontSize: 26,
+                          fontSize: 22,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
