@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/constants.dart';
 import '../../../core/nav_no_transition.dart';
+import '../../../core/responsive.dart';
 import '../../../data/eccd_questions.dart';
 import '../../../db/app_db.dart';
 import '../../../db/schema.dart';
@@ -252,6 +253,22 @@ class _ViewClassTabState extends State<_ViewClassTab> {
                       final age = l['age'] as int;
                       final done = completion[id] ?? false;
 
+                      final bool mobile = !isDesktop(context);
+
+                      final ButtonStyle compactButtonStyle = OutlinedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: mobile ? 10 : 16,
+                          vertical: mobile ? 4 : 12,
+                        ),
+                        minimumSize: Size(0, mobile ? 30 : 40),
+                        tapTargetSize: mobile
+                            ? MaterialTapTargetSize.shrinkWrap
+                            : MaterialTapTargetSize.padded,
+                        visualDensity:
+                        mobile ? const VisualDensity(horizontal: -2, vertical: -2) : null,
+                        textStyle: TextStyle(fontSize: mobile ? 12 : 14),
+                      );
+
                       return Card(
                         elevation: 0,
                         shape: RoundedRectangleBorder(
@@ -261,13 +278,16 @@ class _ViewClassTabState extends State<_ViewClassTab> {
                         child: ListTile(
                           title: Text(name),
                           subtitle: Text(
-                            'Gender: $gender • Age: $age • ${done ? "Completed" : "In Progress"}',
+                            'Gender: $gender • Age: $age \n• ${done ? "Completed" : "In Progress"}',
                           ),
-                          trailing: Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
+                          trailing: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: [
                               OutlinedButton(
+                                style: compactButtonStyle,
                                 onPressed: () async {
                                   await navPushNoTransition(
                                     context,
@@ -279,6 +299,7 @@ class _ViewClassTabState extends State<_ViewClassTab> {
                                 child: const Text('View'),
                               ),
                               OutlinedButton(
+                                style: compactButtonStyle,
                                 onPressed: () async {
                                   await navPushNoTransition(
                                     context,
@@ -302,6 +323,7 @@ class _ViewClassTabState extends State<_ViewClassTab> {
                               ),
                             ],
                           ),
+                        ),
                         ),
                       );
                     },
