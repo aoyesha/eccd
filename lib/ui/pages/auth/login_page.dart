@@ -75,8 +75,18 @@ class _LoginPageState extends State<LoginPage> {
             AuthFormParts.label('Your Email'),
             TextFormField(
               controller: emailCtrl,
-              decoration:
-                  AuthFormParts.inputDecoration('juan.delacruz@deped.gov.ph'),
+              style: const TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.w500,
+              ),
+              decoration: AuthFormParts.inputDecoration(
+                'juan.delacruz@deped.gov.ph',
+              ).copyWith(
+                hintStyle: const TextStyle(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
               keyboardType: TextInputType.emailAddress,
               validator: Validators.email,
             ),
@@ -85,7 +95,15 @@ class _LoginPageState extends State<LoginPage> {
             TextFormField(
               controller: passCtrl,
               obscureText: obscure,
+              style: const TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.w500,
+              ),
               decoration: AuthFormParts.inputDecoration('••••••••').copyWith(
+                hintStyle: const TextStyle(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
                 suffixIcon: IconButton(
                   icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
                   onPressed: () => setState(() => obscure = !obscure),

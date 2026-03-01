@@ -93,6 +93,36 @@ class _TeacherAddLearnerPageState extends State<TeacherAddLearnerPage> {
 
   Future<void> _save() async {
     if (!formKey.currentState!.validate()) return;
+
+    // ================= CROSS FIELD VALIDATION =================
+
+    final siblings = int.tryParse(siblingsCtrl.text);
+    final birthOrder = int.tryParse(birthOrderCtrl.text);
+
+    if (siblings != null && birthOrder != null) {
+      final totalChildren = siblings + 1;
+
+      if (birthOrder > totalChildren) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Birth order cannot exceed total children ($totalChildren).',
+            ),
+          ),
+        );
+        return;
+      }
+
+      if (birthOrder <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Birth order must be at least 1.'),
+          ),
+        );
+        return;
+      }
+    }
+
     if (birthDate == null) {
       ScaffoldMessenger.of(
         context,
@@ -285,8 +315,10 @@ class _TeacherAddLearnerPageState extends State<TeacherAddLearnerPage> {
                                 lrnCtrl,
                                 'LRN',
                                 width: fieldWidth,
+                                keyboardType: TextInputType.number,
                                 inputFormatters: [
                                   FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(12), // max 12 digits
                                 ],
                               ),
                               _field(
@@ -305,18 +337,39 @@ class _TeacherAddLearnerPageState extends State<TeacherAddLearnerPage> {
                                 'Number of Siblings',
                                 width: fieldWidth,
                                 keyboardType: TextInputType.number,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                ],
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                onChanged: () => formKey.currentState!.validate(),
+                                validator: (v) {
+                                  if (v == null || v.isEmpty) return null;
+                                  if (int.tryParse(v) == null) return 'Invalid number';
+                                  return null;
+                                },
                               ),
                               _field(
                                 birthOrderCtrl,
                                 'Birth Order',
                                 width: fieldWidth,
                                 keyboardType: TextInputType.number,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                ],
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                validator: (v) {
+                                  if (v == null || v.isEmpty) return null;
+
+                                  final birthOrder = int.tryParse(v);
+                                  if (birthOrder == null) return 'Invalid number';
+
+                                  final siblings = int.tryParse(siblingsCtrl.text);
+                                  if (siblings == null) return null;
+
+                                  final totalChildren = siblings + 1;
+
+                                  if (birthOrder > totalChildren) {
+                                    return 'Birth order cannot exceed $totalChildren';
+                                  }
+                                  if (birthOrder <= 0) {
+                                    return 'Birth order must be at least 1';
+                                  }
+                                  return null;
+                                },
                               ),
                               _field(
                                 motherNameCtrl,
@@ -404,22 +457,38 @@ class _TeacherAddLearnerPageState extends State<TeacherAddLearnerPage> {
   }
 
   Widget _field(
-    TextEditingController c,
-    String label, {
-    required double width,
-    bool required = false,
-    TextInputType? keyboardType,
-    List<TextInputFormatter>? inputFormatters,
-  }) {
+      TextEditingController c,
+      String label, {
+        required double width,
+        bool required = false,
+        String? Function(String?)? validator,
+        VoidCallback? onChanged,
+        TextInputType? keyboardType,
+        List<TextInputFormatter>? inputFormatters,
+      }) {
+
+    String? Function(String?)? finalValidator;
+
+    if (validator != null) {
+      finalValidator = validator;
+    } else if (required) {
+      finalValidator = (v) => Validators.required(v, label: label);
+    } else {
+      finalValidator = null;
+    }
+
     return SizedBox(
       width: width,
       child: TextFormField(
         controller: c,
-        validator: required
-            ? (v) => Validators.required(v, label: label)
-            : null,
+        validator: finalValidator,
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
+
+        onChanged: (_) {
+          if (onChanged != null) onChanged();
+        },
+
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
