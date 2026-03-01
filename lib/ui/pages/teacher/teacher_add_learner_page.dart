@@ -11,7 +11,10 @@ class TeacherAddLearnerPage extends StatefulWidget {
   const TeacherAddLearnerPage({super.key, required this.classId});
 
   @override
-  State<TeacherAddLearnerPage> createState() => _TeacherAddLearnerPageState();
+  State<TeacherAddLearnerPage> createState() => _TeacherAddLearnerPageState(
+
+
+  );
 }
 
 class _TeacherAddLearnerPageState extends State<TeacherAddLearnerPage> {
@@ -63,6 +66,10 @@ class _TeacherAddLearnerPageState extends State<TeacherAddLearnerPage> {
     guardianOccupationCtrl.dispose();
     super.dispose();
   }
+
+  final _nameFormatter = FilteringTextInputFormatter.allow(
+    RegExp(r"[a-zA-Z .'-]"),
+  );
 
   String get _ageDecimal {
     if (birthDate == null) return '-';
@@ -213,18 +220,21 @@ class _TeacherAddLearnerPageState extends State<TeacherAddLearnerPage> {
                                 'Last Name',
                                 width: fieldWidth,
                                 required: true,
+                                inputFormatters: [_nameFormatter],
                               ),
                               _field(
                                 firstNameCtrl,
                                 'First Name',
                                 width: fieldWidth,
                                 required: true,
+                                inputFormatters: [_nameFormatter],
                               ),
                               _field(
                                 middleNameCtrl,
                                 'Middle Name',
                                 width: fieldWidth,
-                                required: true,
+                                required: false,
+                                inputFormatters: [_nameFormatter],
                               ),
                               SizedBox(
                                 width: fieldWidth,

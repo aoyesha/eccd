@@ -274,7 +274,33 @@ class _SettingsPageState extends State<SettingsPage> {
             border:const OutlineInputBorder(),
             suffixIcon:IconButton(
               icon:Icon(_obscureCurrentPw?Icons.visibility_off:Icons.visibility),
-              onPressed:()=>setState(()=>_obscureCurrentPw=!_obscureCurrentPw),
+              onPressed: () async {
+                if (!_pwKey.currentState!.validate()) return;
+
+                try {
+                  await auth.changePassword(
+                    userId: session.userId,
+                    currentPassword: _currentPwCtrl.text,
+                    newPassword: _pwCtrl.text,
+                  );
+
+                  _currentPwCtrl.clear();
+                  _pwCtrl.clear();
+
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Password updated.')),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Current password is incorrect.'),
+                    ),
+                  );
+                }
+              },
             ),
           ),
         ),

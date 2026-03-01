@@ -276,7 +276,11 @@ class _ViewClassTabState extends State<_ViewClassTab> {
                           side: const BorderSide(color: Color(0xFFE6E6E6)),
                         ),
                         child: ListTile(
-                          title: Text(name),
+                          title: Text(name,
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                          ),
+                          ),
                           subtitle: Text(
                             'Gender: $gender • Age: $age \n• ${done ? "Completed" : "In Progress"}',
                           ),

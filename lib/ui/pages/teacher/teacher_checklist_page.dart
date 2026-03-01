@@ -355,9 +355,19 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
   }
 
   Widget _chip(String text, {VoidCallback? onTap}) {
-    return InkWell(
-      onTap: onTap,
-      child: Chip(label: Text(text)),
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: const Icon(Icons.edit_calendar, size: 18),
+      label: Text(
+        text,
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+      ),
     );
   }
 

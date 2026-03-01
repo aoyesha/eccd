@@ -264,9 +264,22 @@ class _RegisterPageState extends State<RegisterPage> {
         TextFormField(
           controller: emailCtrl,
           decoration:
-              AuthFormParts.inputDecoration('juan.delacruz@deped.gov.ph'),
-          validator: Validators.email,
+          AuthFormParts.inputDecoration('juan.delacruz@deped.gov.ph'),
           keyboardType: TextInputType.emailAddress,
+          validator: (value) {
+            final v = value?.trim() ?? '';
+            if (v.isEmpty) {
+              return 'Email is required';
+            }
+
+            final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@deped\.gov\.ph$');
+
+            if (!emailRegex.hasMatch(v)) {
+              return 'Email must be a valid @deped.gov.ph address';
+            }
+
+            return null;
+          },
         ),
         const SizedBox(height: 14),
         AuthFormParts.label('Set Password'),

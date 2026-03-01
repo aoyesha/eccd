@@ -46,7 +46,7 @@ class _LoginPageState extends State<LoginPage> {
     if (!mounted) return;
     setState(() => loading = false);
     if (userId == null) {
-      _snack('Invalid email/password for selected role.');
+      _snack('The email or password you entered is incorrect.');
       return;
     }
     await navReplaceNoTransition(context, const AppShell());
@@ -109,8 +109,12 @@ class _LoginPageState extends State<LoginPage> {
                   onPressed: () => setState(() => obscure = !obscure),
                 ),
               ),
-              validator: Validators.password,
-            ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter your password';
+                }
+                return null;
+              },            ),
             const SizedBox(height: 14),
             _roleSelector(),
             const SizedBox(height: 18),

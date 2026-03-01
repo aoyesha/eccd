@@ -25,6 +25,13 @@ class _TeacherAddClassPageState extends State<TeacherAddClassPage> {
   final gradeCtrl = TextEditingController();
   final sectionCtrl = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    gradeCtrl.text = 'Kindergarten';
+  }
+
+
   String? schoolYear;
   bool dirty = false;
 
@@ -247,6 +254,7 @@ class _TeacherAddClassPageState extends State<TeacherAddClassPage> {
                           width: 260,
                           child: TextFormField(
                             controller: gradeCtrl,
+                            enabled: false,
                             decoration: const InputDecoration(
                               labelText: 'Grade',
                               border: OutlineInputBorder(),
@@ -355,7 +363,14 @@ class _TeacherAddClassPageState extends State<TeacherAddClassPage> {
   }
 
   List<String> _schoolYearOptions() {
-    return schoolYearRangeOptions(startYear: 2020, yearsFromNow: 10);
+    final now = DateTime.now();
+
+    int startYear = now.month >= 6 ? now.year : now.year - 1;
+
+    final currentSY = '$startYear-${startYear + 1}';
+    final nextSY = '${startYear + 1}-${startYear + 2}';
+
+    return [currentSY, nextSY];
   }
 
   String? _normalizeGender(String raw) {
