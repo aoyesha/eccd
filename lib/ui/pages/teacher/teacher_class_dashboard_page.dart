@@ -142,14 +142,18 @@ class _ViewClassTabState extends State<_ViewClassTab> {
 
   Future<bool> _hasAssessment(int learnerId, String type) async {
     final db = AppDb.instance.db;
-    final rows = await db.query(
-      DbSchema.tAssessments,
-      columns: [DbSchema.cAssessId],
-      where:
-          '${DbSchema.cAssessLearnerId}=? AND ${DbSchema.cAssessClassId}=? AND ${DbSchema.cAssessType}=?',
-      whereArgs: [learnerId, widget.classId, type],
-      limit: 1,
-    );
+
+    final rows = await db.rawQuery('''
+    SELECT s.${DbSchema.cSumAssessId}
+    FROM ${DbSchema.tAssessments} a
+    JOIN ${DbSchema.tAssessmentSummary} s
+      ON s.${DbSchema.cSumAssessId} = a.${DbSchema.cAssessId}
+    WHERE a.${DbSchema.cAssessLearnerId} = ?
+      AND a.${DbSchema.cAssessClassId} = ?
+      AND a.${DbSchema.cAssessType} = ?
+    LIMIT 1
+  ''', [learnerId, widget.classId, type]);
+
     return rows.isNotEmpty;
   }
 

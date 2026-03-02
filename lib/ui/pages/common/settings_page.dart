@@ -194,6 +194,13 @@ class _SettingsPageState extends State<SettingsPage> {
       item('School',_schoolCtrl.text),
     ]);
   }
+  String? _requiredDropdown(String? value, String label) {
+    if (value == null || value.trim().isEmpty) {
+      return '$label is required';
+    }
+    return null;
+  }
+
 
   // ================= PROFILE EDIT =================
   Widget _editProfileForm(session,AuthService auth){
@@ -205,27 +212,46 @@ class _SettingsPageState extends State<SettingsPage> {
         _field(_emailCtrl,'Email',Validators.email),
         const SizedBox(height:10),
         DropdownButtonFormField<String>(
-          value:_selectedRegion,
-          items:_regionItems(),
-          onChanged:(v)=>setState(()=>_selectedRegion=v),
-          decoration:const InputDecoration(labelText:'Region',border:OutlineInputBorder()),
+          value: _selectedRegion,
+          items: _regionItems(),
+          validator: (v) => _requiredDropdown(v, 'Region'),
+          onChanged: (v) => setState(() {
+            _selectedRegion = v;
+            _selectedDivision = null;
+            _selectedDistrict = null;
+          }),
+          decoration: const InputDecoration(
+            labelText: 'Region',
+            border: OutlineInputBorder(),
+          ),
         ),
         const SizedBox(height:10),
         DropdownButtonFormField<String>(
-          value:_selectedDivision,
-          items:_divisionItems(),
-          onChanged:(v)=>setState(()=>_selectedDivision=v),
-          decoration:const InputDecoration(labelText:'Division',border:OutlineInputBorder()),
+          value: _selectedDivision,
+          items: _divisionItems(),
+          validator: (v) => _requiredDropdown(v, 'Division'),
+          onChanged: (v) => setState(() {
+            _selectedDivision = v;
+            _selectedDistrict = null;   // reset cascade
+          }),
+          decoration: const InputDecoration(
+            labelText: 'Division',
+            border: OutlineInputBorder(),
+          ),
         ),
         const SizedBox(height:10),
         DropdownButtonFormField<String>(
-          value:_selectedDistrict,
-          items:_districtItems(),
-          onChanged:(v)=>setState(()=>_selectedDistrict=v),
-          decoration:const InputDecoration(labelText:'District',border:OutlineInputBorder()),
+          value: _selectedDistrict,
+          items: _districtItems(),
+          validator: (v) => _requiredDropdown(v, 'District'),
+          onChanged: (v) => setState(() => _selectedDistrict = v),
+          decoration: const InputDecoration(
+            labelText: 'District',
+            border: OutlineInputBorder(),
+          ),
         ),
         const SizedBox(height:10),
-        _field(_schoolCtrl,'School',null),
+        _field(_schoolCtrl,'School',(v)=>Validators.required(v,label:'School')),
         const SizedBox(height:16),
 
         Row(mainAxisAlignment:MainAxisAlignment.end,children:[

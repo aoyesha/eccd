@@ -13,6 +13,7 @@ class AppNav extends StatelessWidget {
   final ValueChanged<int> onSelected;
   final String profileName;
   final String division;
+
   const AppNav({
     super.key,
     required this.items,
@@ -82,9 +83,10 @@ class AppNav extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: _navTile(
+                        context,                // 👈 pass context here
                         items[i],
                         i == selectedIndex,
-                        () => onSelected(i),
+                            () => onSelected(i),
                       ),
                     ),
                 ],
@@ -96,13 +98,24 @@ class AppNav extends StatelessWidget {
     );
   }
 
-  Widget _navTile(AppNavItem item, bool selected, VoidCallback onTap) {
+  Widget _navTile(
+      BuildContext context,
+      AppNavItem item,
+      bool selected,
+      VoidCallback onTap,
+      ) {
     return Material(
       color: selected ? AppColors.maroonDark : Colors.transparent,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
+        onTap: () {
+          // Close mobile drawer / popup
+          Navigator.of(context).maybePop();
+
+          // Switch page after drawer animation
+          Future.delayed(const Duration(milliseconds: 200), onTap);
+        },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(

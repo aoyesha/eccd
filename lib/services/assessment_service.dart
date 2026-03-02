@@ -124,20 +124,24 @@ class AssessmentService {
     });
   }
 
-  Future<bool> hasSavedAssessment({
+  Future<bool> hasCompletedAssessment({
     required int learnerId,
     required int classId,
     required String assessmentType, // pre|post
   }) async {
     final db = AppDb.instance.db;
-    final rows = await db.query(
-      DbSchema.tAssessments,
-      columns: [DbSchema.cAssessId],
-      where:
-          '${DbSchema.cAssessLearnerId}=? AND ${DbSchema.cAssessClassId}=? AND ${DbSchema.cAssessType}=?',
-      whereArgs: [learnerId, classId, assessmentType],
-      limit: 1,
-    );
+
+    final rows = await db.rawQuery('''
+    SELECT s.${DbSchema.cSumAssessId}
+    FROM ${DbSchema.tAssessments} a
+    JOIN ${DbSchema.tAssessmentSummary} s
+      ON s.${DbSchema.cSumAssessId} = a.${DbSchema.cAssessId}
+    WHERE a.${DbSchema.cAssessLearnerId} = ?
+      AND a.${DbSchema.cAssessClassId} = ?
+      AND a.${DbSchema.cAssessType} = ?
+    LIMIT 1
+  ''', [learnerId, classId, assessmentType]);
+
     return rows.isNotEmpty;
   }
 

@@ -60,7 +60,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             },
           ),
           const SizedBox(height: 12),
-          Expanded(child: tabs[tab]),
+          Expanded(
+            child: IndexedStack(
+              index: tab,
+              children: tabs,
+            ),
+          ),
         ],
       ),
     );
