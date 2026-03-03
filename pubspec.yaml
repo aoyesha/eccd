@@ -49,6 +49,7 @@ dependencies:
 
   printing: ^5.14.2
 
+  bcrypt: ^1.1.3
 
 
 dev_dependencies:

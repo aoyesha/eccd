@@ -112,11 +112,25 @@ class AuthService extends ChangeNotifier {
   }) async {
     final db = AppDb.instance.db;
 
-    final id = await db.insert(DbSchema.tUsers, {
+    final normalizedEmail = email.trim().toLowerCase();
+
+    // 🔐 Check if email already exists
+    final existing = await db.query(
+      DbSchema.tUsers,
+      columns: [DbSchema.cUserId],
+      where: 'LOWER(${DbSchema.cUserEmail}) = ?',
+      whereArgs: [normalizedEmail],
+      limit: 1,
+    );
+
+    if (existing.isNotEmpty) {
+      throw StateError('Email already exists.');
+    }
+
+    return db.insert(DbSchema.tUsers, {
       DbSchema.cUserRole: role.name,
-      DbSchema.cUserEmail: email.trim().toLowerCase(),
-      DbSchema.cUserPasswordHash:
-      _hashPassword(password.trim()),
+      DbSchema.cUserEmail: normalizedEmail,
+      DbSchema.cUserPasswordHash: _hashPassword(password.trim()),
       DbSchema.cUserName: name.trim(),
       DbSchema.cUserSchool: school?.trim(),
       DbSchema.cUserDistrict: district?.trim(),
@@ -124,11 +138,8 @@ class AuthService extends ChangeNotifier {
       DbSchema.cUserRegion: region?.trim(),
       DbSchema.cUserAcceptedTos: acceptedTos ? 1 : 0,
       DbSchema.cUserAcceptedPrivacy: acceptedPrivacy ? 1 : 0,
-      DbSchema.cUserCreatedAt:
-      DateTime.now().toIso8601String(),
+      DbSchema.cUserCreatedAt: DateTime.now().toIso8601String(),
     });
-
-    return id;
   }
 
   // ---------------------------
@@ -205,13 +216,26 @@ class AuthService extends ChangeNotifier {
     String? region,
   }) async {
     final db = AppDb.instance.db;
+    final normalizedEmail = email.trim().toLowerCase();
+
+
+    final existing = await db.query(
+      DbSchema.tUsers,
+      where:
+      'LOWER(${DbSchema.cUserEmail}) = ? AND ${DbSchema.cUserId} != ?',
+      whereArgs: [normalizedEmail, userId],
+      limit: 1,
+    );
+
+    if (existing.isNotEmpty) {
+      throw StateError('Email already exists.');
+    }
 
     await db.update(
       DbSchema.tUsers,
       {
         DbSchema.cUserName: name.trim(),
-        DbSchema.cUserEmail:
-        email.trim().toLowerCase(),
+        DbSchema.cUserEmail: normalizedEmail,
         DbSchema.cUserSchool: school?.trim(),
         DbSchema.cUserDistrict: district?.trim(),
         DbSchema.cUserDivision: division?.trim(),
