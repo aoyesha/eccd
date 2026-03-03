@@ -306,7 +306,27 @@ class _SettingsPageState extends State<SettingsPage> {
       child:Column(children:[
         _field(_nameCtrl,'Full Name',(v)=>Validators.required(v,label:'Full Name')),
         const SizedBox(height:10),
-        _field(_emailCtrl,'Email',Validators.email),
+        _field(
+          _emailCtrl,
+          'Email',
+              (value) {
+            final v = value?.trim() ?? '';
+
+            if (v.isEmpty) {
+              return 'Email is required';
+            }
+
+            if (!RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$').hasMatch(v)) {
+              return 'Enter a valid email address';
+            }
+
+            if (!v.toLowerCase().endsWith('@deped.gov.ph')) {
+              return 'Email must be a valid deped.gov.ph address';
+            }
+
+            return null;
+          },
+        ),
         const SizedBox(height:10),
         DropdownButtonFormField<String>(
           value: _selectedRegion,
