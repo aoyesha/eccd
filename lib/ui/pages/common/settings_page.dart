@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants.dart';
@@ -304,9 +305,55 @@ class _SettingsPageState extends State<SettingsPage> {
     return Form(
       key:_profileKey,
       child:Column(children:[
-        _field(_nameCtrl,'Full Name',(v)=>Validators.required(v,label:'Full Name')),
+        TextFormField(
+          controller: _nameCtrl,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(
+              RegExp(r"[A-Za-z\s\-']"),
+            ),
+          ],
+          validator: (v) {
+            final value = v?.trim() ?? '';
+
+            if (value.isEmpty) {
+              return 'Full Name is required';
+            }
+
+            final nameRegex = RegExp(r"^[A-Za-z]+([ '\-][A-Za-z]+)*$");
+
+            if (!nameRegex.hasMatch(value)) {
+              return 'Name must contain letters only';
+            }
+
+            return null;
+          },
+          decoration: const InputDecoration(
+            labelText: 'Full Name',
+            border: OutlineInputBorder(),
+          ),
+        ),
         const SizedBox(height:10),
-        _field(_emailCtrl,'Email',Validators.email),
+        _field(
+          _emailCtrl,
+          'Email',
+              (value) {
+            final v = value?.trim() ?? '';
+
+            if (v.isEmpty) {
+              return 'Email is required';
+            }
+
+            if (!RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$').hasMatch(v)) {
+              return 'Enter a valid email address';
+            }
+
+            if (!v.toLowerCase().endsWith('@deped.gov.ph')) {
+              return 'Email must be a valid deped.gov.ph address';
+            }
+
+            return null;
+          },
+        ),
         const SizedBox(height:10),
         DropdownButtonFormField<String>(
           value: _selectedRegion,
@@ -363,15 +410,33 @@ class _SettingsPageState extends State<SettingsPage> {
                 foregroundColor:Colors.white),
             onPressed:() async{
               if(!_profileKey.currentState!.validate()) return;
-              await auth.updateProfile(
-                userId:session.userId,
-                name:_nameCtrl.text,
-                email:_emailCtrl.text,
-                school:_schoolCtrl.text,
-                district:_selectedDistrict??'',
-                division:_selectedDivision??'',
-                region:_selectedRegion??'',
-              );
+              try {
+                await auth.updateProfile(
+                  userId: session.userId,
+                  name: _nameCtrl.text,
+                  email: _emailCtrl.text,
+                  school: _schoolCtrl.text,
+                  district: _selectedDistrict ?? '',
+                  division: _selectedDivision ?? '',
+                  region: _selectedRegion ?? '',
+                );
+
+                setState(() => _editingProfile = false);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Profile updated.')),
+                );
+              } catch (e) {
+                if (e is StateError && e.message == 'Email already exists.') {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('This email is already registered.')),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Failed to update profile.')),
+                  );
+                }
+              }
               setState(()=>_editingProfile=false);
               ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content:Text('Profile updated.')));

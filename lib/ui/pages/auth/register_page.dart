@@ -142,8 +142,15 @@ class _RegisterPageState extends State<RegisterPage> {
           );
       if (!mounted) return;
       navReplaceNoTransition(context, const LoginPage());
-    } catch (e) {
-      _snack('Registration failed: $e');
+    } catch (e)
+    {
+      if (e is StateError &&
+          e.message == 'Email already exists.') {
+        _snack('This email is already registered.');
+      } else {
+        _snack('Registration failed. Please try again.');
+      }
+
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -299,7 +306,21 @@ class _RegisterPageState extends State<RegisterPage> {
         TextFormField(
           controller: nameCtrl,
           decoration: AuthFormParts.inputDecoration('Juan Dela Cruz'),
-          validator: (v) => Validators.required(v, label: 'Name'),
+          validator: (v) {
+            final value = v?.trim() ?? '';
+
+            if (value.isEmpty) {
+              return 'Name is required';
+            }
+
+            final nameRegex = RegExp(r"^[A-Za-z]+([ '\-][A-Za-z]+)*$");
+
+            if (!nameRegex.hasMatch(value)) {
+              return 'Name must contain letters only';
+            }
+
+            return null;
+          },
         ),
         const SizedBox(height: 14),
         AuthFormParts.label('Your Email'),

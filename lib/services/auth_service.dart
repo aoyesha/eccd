@@ -1,6 +1,5 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:crypto/crypto.dart';
+import 'package:bcrypt/bcrypt.dart';
 
 import '../core/constants.dart';
 import '../db/app_db.dart';
@@ -17,16 +16,33 @@ class AuthService extends ChangeNotifier {
   Session? _session;
   Session? get session => _session;
 
+  // ---------------------------
+  // Rate limiting (basic)
+  // ---------------------------
+  int _failedAttempts = 0;
+  DateTime? _lockUntil;
+
+  // ---------------------------
+  // Password hashing (bcrypt)
+  // ---------------------------
   String _hashPassword(String password) {
-    final bytes = utf8.encode(password);
-    return sha256.convert(bytes).toString();
+    return BCrypt.hashpw(password, BCrypt.gensalt());
   }
 
+  // ---------------------------
+  // LOGIN
+  // ---------------------------
   Future<int?> login({
     required UserRole role,
     required String email,
     required String password,
   }) async {
+    // Account temporarily locked
+    if (_lockUntil != null &&
+        DateTime.now().isBefore(_lockUntil!)) {
+      return null;
+    }
+
     final db = AppDb.instance.db;
     final normalizedEmail = email.trim().toLowerCase();
     final normalizedRole = role.name.toLowerCase();
@@ -34,36 +50,54 @@ class AuthService extends ChangeNotifier {
     final rows = await db.query(
       DbSchema.tUsers,
       where:
-          'LOWER(${DbSchema.cUserEmail}) = ? AND LOWER(${DbSchema.cUserRole}) = ?',
+      'LOWER(${DbSchema.cUserEmail}) = ? AND LOWER(${DbSchema.cUserRole}) = ?',
       whereArgs: [normalizedEmail, normalizedRole],
       limit: 1,
     );
-    if (rows.isEmpty) return null;
 
-    final row = rows.first;
-    final stored = (row[DbSchema.cUserPasswordHash] ?? '').toString();
-    final trimmedPassword = password.trim();
-    final hash = _hashPassword(password.trim());
-
-    // Backward compatibility:
-    // - standard: stored hash
-    // - legacy: plaintext password still in DB (migrate on successful login)
-    if (stored != hash && stored != trimmedPassword) return null;
-
-    if (stored == trimmedPassword) {
-      await db.update(
-        DbSchema.tUsers,
-        {DbSchema.cUserPasswordHash: hash},
-        where: '${DbSchema.cUserId} = ?',
-        whereArgs: [row[DbSchema.cUserId]],
-      );
+    if (rows.isEmpty) {
+      _registerFailedAttempt();
+      return null;
     }
 
-    _session = Session(userId: row[DbSchema.cUserId] as int, role: role);
+    final row = rows.first;
+    final storedHash =
+    (row[DbSchema.cUserPasswordHash] ?? '').toString();
+
+    final passwordMatches =
+    BCrypt.checkpw(password.trim(), storedHash);
+
+    if (!passwordMatches) {
+      _registerFailedAttempt();
+      return null;
+    }
+
+    // Success → reset lock
+    _failedAttempts = 0;
+    _lockUntil = null;
+
+    _session = Session(
+      userId: row[DbSchema.cUserId] as int,
+      role: role,
+    );
+
     notifyListeners();
     return _session!.userId;
   }
 
+  void _registerFailedAttempt() {
+    _failedAttempts++;
+
+    if (_failedAttempts >= 5) {
+      _lockUntil =
+          DateTime.now().add(const Duration(minutes: 5));
+      _failedAttempts = 0;
+    }
+  }
+
+  // ---------------------------
+  // REGISTER
+  // ---------------------------
   Future<int> register({
     required UserRole role,
     required String email,
@@ -77,9 +111,25 @@ class AuthService extends ChangeNotifier {
     required bool acceptedPrivacy,
   }) async {
     final db = AppDb.instance.db;
-    final id = await db.insert(DbSchema.tUsers, {
+
+    final normalizedEmail = email.trim().toLowerCase();
+
+    // 🔐 Check if email already exists
+    final existing = await db.query(
+      DbSchema.tUsers,
+      columns: [DbSchema.cUserId],
+      where: 'LOWER(${DbSchema.cUserEmail}) = ?',
+      whereArgs: [normalizedEmail],
+      limit: 1,
+    );
+
+    if (existing.isNotEmpty) {
+      throw StateError('Email already exists.');
+    }
+
+    return db.insert(DbSchema.tUsers, {
       DbSchema.cUserRole: role.name,
-      DbSchema.cUserEmail: email.trim().toLowerCase(),
+      DbSchema.cUserEmail: normalizedEmail,
       DbSchema.cUserPasswordHash: _hashPassword(password.trim()),
       DbSchema.cUserName: name.trim(),
       DbSchema.cUserSchool: school?.trim(),
@@ -90,15 +140,18 @@ class AuthService extends ChangeNotifier {
       DbSchema.cUserAcceptedPrivacy: acceptedPrivacy ? 1 : 0,
       DbSchema.cUserCreatedAt: DateTime.now().toIso8601String(),
     });
-    return id;
   }
 
+  // ---------------------------
+  // CHANGE PASSWORD
+  // ---------------------------
   Future<void> changePassword({
     required int userId,
     required String currentPassword,
     required String newPassword,
   }) async {
     final db = AppDb.instance.db;
+
     final rows = await db.query(
       DbSchema.tUsers,
       columns: [DbSchema.cUserPasswordHash],
@@ -106,38 +159,53 @@ class AuthService extends ChangeNotifier {
       whereArgs: [userId],
       limit: 1,
     );
+
     if (rows.isEmpty) {
       throw StateError('User not found.');
     }
 
-    final stored = (rows.first[DbSchema.cUserPasswordHash] ?? '').toString();
-    final currentTrimmed = currentPassword.trim();
-    final currentHash = _hashPassword(currentTrimmed);
-    final currentMatches = stored == currentHash || stored == currentTrimmed;
-    if (!currentMatches) {
-      throw StateError('Current password is incorrect.');
+    final storedHash =
+    (rows.first[DbSchema.cUserPasswordHash] ?? '')
+        .toString();
+
+    if (!BCrypt.checkpw(
+        currentPassword.trim(), storedHash)) {
+      throw StateError(
+          'Current password is incorrect.');
     }
 
     await db.update(
       DbSchema.tUsers,
-      {DbSchema.cUserPasswordHash: _hashPassword(newPassword.trim())},
+      {
+        DbSchema.cUserPasswordHash:
+        _hashPassword(newPassword.trim()),
+      },
       where: '${DbSchema.cUserId} = ?',
       whereArgs: [userId],
     );
   }
 
-  Future<Map<String, Object?>?> getUser(int userId) async {
+  // ---------------------------
+  // GET USER
+  // ---------------------------
+  Future<Map<String, Object?>?> getUser(
+      int userId) async {
     final db = AppDb.instance.db;
+
     final rows = await db.query(
       DbSchema.tUsers,
       where: '${DbSchema.cUserId}=?',
       whereArgs: [userId],
       limit: 1,
     );
+
     if (rows.isEmpty) return null;
     return rows.first;
   }
 
+  // ---------------------------
+  // UPDATE PROFILE
+  // ---------------------------
   Future<void> updateProfile({
     required int userId,
     required String name,
@@ -148,11 +216,26 @@ class AuthService extends ChangeNotifier {
     String? region,
   }) async {
     final db = AppDb.instance.db;
+    final normalizedEmail = email.trim().toLowerCase();
+
+
+    final existing = await db.query(
+      DbSchema.tUsers,
+      where:
+      'LOWER(${DbSchema.cUserEmail}) = ? AND ${DbSchema.cUserId} != ?',
+      whereArgs: [normalizedEmail, userId],
+      limit: 1,
+    );
+
+    if (existing.isNotEmpty) {
+      throw StateError('Email already exists.');
+    }
+
     await db.update(
       DbSchema.tUsers,
       {
         DbSchema.cUserName: name.trim(),
-        DbSchema.cUserEmail: email.trim().toLowerCase(),
+        DbSchema.cUserEmail: normalizedEmail,
         DbSchema.cUserSchool: school?.trim(),
         DbSchema.cUserDistrict: district?.trim(),
         DbSchema.cUserDivision: division?.trim(),
@@ -161,9 +244,13 @@ class AuthService extends ChangeNotifier {
       where: '${DbSchema.cUserId} = ?',
       whereArgs: [userId],
     );
+
     notifyListeners();
   }
 
+  // ---------------------------
+  // LOGOUT
+  // ---------------------------
   void logout() {
     _session = null;
     notifyListeners();

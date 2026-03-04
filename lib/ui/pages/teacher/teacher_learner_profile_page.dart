@@ -51,13 +51,16 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
     return null;
   }
   String? _pupilNameValidator(String? v, String label, {bool required = true}) {
-    if (v == null || v.isEmpty) {
+    final value = v?.trim() ?? '';
+
+    if (value.isEmpty) {
       return required ? '$label is required' : null;
     }
 
-    final onlyLetters = RegExp(r'^[A-Za-z]+$');
-    if (!onlyLetters.hasMatch(v)) {
-      return '$label must contain letters only (no spaces, numbers or symbols)';
+    final nameRegex = RegExp(r"^[A-Za-z]+([ '\-][A-Za-z]+)*$");
+
+    if (!nameRegex.hasMatch(value)) {
+      return '$label must contain letters only';
     }
 
     return null;
@@ -168,7 +171,23 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
       );
       return;
     }
+    final siblings = int.tryParse(siblingsCtrl.text);
+    final birthOrder = int.tryParse(birthOrderCtrl.text);
 
+    if (siblings != null && birthOrder != null) {
+      final totalChildren = siblings + 1;
+
+      if (birthOrder > totalChildren) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Birth order cannot exceed total children ($totalChildren).',
+            ),
+          ),
+        );
+        return;
+      }
+    }
     await _learners.updateLearner(
       learnerId: widget.learnerId,
       firstName: firstNameCtrl.text,
@@ -256,18 +275,33 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
                                 'Last Name',
                                     (v) => _pupilNameValidator(v, 'Last Name'),
                                 width: fieldWidth,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                    RegExp(r"[A-Za-z\s\-']"),
+                                  ),
+                                ],
                               ),
                               _field(
                                 firstNameCtrl,
                                 'First Name',
-                                    (v) => _pupilNameValidator(v, 'First Name'),
+                                    (v) => _pupilNameValidator(v, 'Last Name'),
                                 width: fieldWidth,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                    RegExp(r"[A-Za-z\s\-']"),
+                                  ),
+                                ],
                               ),
                               _field(
                                 middleNameCtrl,
                                 'Middle Name',
-                                    (v) => _pupilNameValidator(v, 'Middle Name', required: false),
+                                    (v) => _pupilNameValidator(v, 'Last Name', required: false),
                                 width: fieldWidth,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                    RegExp(r"[A-Za-z\s\-']"),
+                                  ),
+                                ],
                               ),
                               SizedBox(
                                 width: fieldWidth,
@@ -383,17 +417,43 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
                               _field(
                                 siblingsCtrl,
                                 'Number of Siblings',
-                                null,
+                                    (v) {
+                                  if (v == null || v.isEmpty) return null;
+
+                                  final siblings = int.tryParse(v);
+                                  if (siblings == null) return 'Invalid number';
+                                  if (siblings < 0) return 'Cannot be negative';
+
+                                  return null;
+                                },
                                 width: fieldWidth,
                                 keyboardType: TextInputType.number,
                                 inputFormatters: [
                                   FilteringTextInputFormatter.digitsOnly,
                                 ],
+                                onChanged: () => formKey.currentState!.validate(),
                               ),
                               _field(
                                 birthOrderCtrl,
                                 'Birth Order',
-                                null,
+                                    (v) {
+                                  if (v == null || v.isEmpty) return null;
+
+                                  final birthOrder = int.tryParse(v);
+                                  if (birthOrder == null) return 'Invalid number';
+                                  if (birthOrder <= 0) return 'Must be at least 1';
+
+                                  final siblings = int.tryParse(siblingsCtrl.text);
+                                  if (siblings != null) {
+                                    final totalChildren = siblings + 1;
+
+                                    if (birthOrder > totalChildren) {
+                                      return 'Cannot exceed total children ($totalChildren)';
+                                    }
+                                  }
+
+                                  return null;
+                                },
                                 width: fieldWidth,
                                 keyboardType: TextInputType.number,
                                 inputFormatters: [
@@ -402,9 +462,14 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
                               ),
                               _field(
                                 motherNameCtrl,
-                                "Mother's Name",
-                                    (v) => _parentNameValidator(v, "Mother's Name"),
+                                'Mother Name',
+                                    (v) => _pupilNameValidator(v, 'Last Name', required: false),
                                 width: fieldWidth,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                    RegExp(r"[A-Za-z\s\-']"),
+                                  ),
+                                ],
                               ),
                               _field(
                                 motherOccupationCtrl,
@@ -424,9 +489,14 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
                               ),
                               _field(
                                 fatherNameCtrl,
-                                "Father's Name",
-                                    (v) => _parentNameValidator(v, "Father's Name"),
+                                'Father Name',
+                                    (v) => _pupilNameValidator(v, 'Last Name', required: false),
                                 width: fieldWidth,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                    RegExp(r"[A-Za-z\s\-']"),
+                                  ),
+                                ],
                               ),
                               _field(
                                 fatherOccupationCtrl,
@@ -499,7 +569,9 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
     required double width,
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
-  }) {
+        VoidCallback? onChanged,   // ADD THIS
+
+      }) {
     return SizedBox(
       width: width,
       child: TextFormField(
