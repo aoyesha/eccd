@@ -42,6 +42,13 @@ class _SettingsPageState extends State<SettingsPage> {
 
   bool _loaded = false;
 
+  Map<String, dynamic> currentProfile = {
+    'name': '',
+    'email': '',
+    'school': '',
+    'currentPw':'',
+  };
+
   static const List<String> _regions = [
     'MIMAROPA',
   ];
@@ -167,8 +174,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   void _hydrate(Map<String,Object?> user){
     if(_loaded) return;
-    _nameCtrl.text=(user['name']??'').toString();
-    _emailCtrl.text=(user['email']??'').toString();
+    currentProfile['name'] = _nameCtrl.text=(user['name']??'').toString();
+    currentProfile['email'] = _emailCtrl.text=(user['email']??'').toString();
     _schoolCtrl.text=(user['school']??'').toString();
     _selectedRegion=(user['region']??'').toString().isEmpty?null:user['region'].toString();
     _selectedDivision=(user['division']??'').toString().isEmpty?null:user['division'].toString();
@@ -431,10 +438,12 @@ class _SettingsPageState extends State<SettingsPage> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('This email is already registered.')),
                   );
+                    _emailCtrl.text = currentProfile['email'];
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Failed to update profile.')),
                   );
+                  // TO-DO: idk if kaya i-run _hydrate again somehow, dito sana
                 }
               }
               setState(()=>_editingProfile=false);
