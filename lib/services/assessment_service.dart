@@ -9,12 +9,11 @@ class AssessmentService {
   /// Save checklist answers for a learner for:
   /// - 'pre'
   /// - 'post'
-  /// If user selects "Conditional", pass conditionalOverwritePre=true and it will save as 'pre'.
+  /// - 'conditional'
   Future<void> saveAssessment({
     required int learnerId,
     required int classId,
-    required String assessmentType, // 'pre'|'post'
-    required bool conditionalOverwritePre,
+    required String assessmentType, // 'pre'|'post'|'conditional'
     required String dateIso,
     required int ageAtAssessment,
     double? ageValueForScoring,
@@ -23,8 +22,7 @@ class AssessmentService {
   }) async {
     final db = AppDb.instance.db;
     final scoringAge = ageValueForScoring ?? ageAtAssessment.toDouble();
-
-    final effectiveType = conditionalOverwritePre ? 'pre' : assessmentType;
+    final effectiveType = assessmentType.trim().toLowerCase();
 
     // Upsert assessment header
     final existing = await db.query(
@@ -127,7 +125,7 @@ class AssessmentService {
   Future<bool> hasCompletedAssessment({
     required int learnerId,
     required int classId,
-    required String assessmentType, // pre|post
+    required String assessmentType, // pre|post|conditional
   }) async {
     final db = AppDb.instance.db;
 

@@ -2,6 +2,22 @@ import '../db/app_db.dart';
 import '../db/schema.dart';
 
 class LearnerService {
+  Future<Map<String, Object?>> _filterExistingLearnerColumns(
+    Map<String, Object?> values,
+  ) async {
+    final db = AppDb.instance.db;
+    final cols = await db.rawQuery('PRAGMA table_info(${DbSchema.tLearners})');
+    final existing = cols
+        .map((c) => (c['name'] ?? '').toString())
+        .where((name) => name.isNotEmpty)
+        .toSet();
+    final out = <String, Object?>{};
+    values.forEach((k, v) {
+      if (existing.contains(k)) out[k] = v;
+    });
+    return out;
+  }
+
   Future<int> addLearner({
     required int classId,
     required String firstName,
@@ -18,15 +34,22 @@ class LearnerService {
     String? barangay,
     String? parentName,
     String? parentOccupation,
+    String? parentEducation,
+    String? guardianName,
+    String? guardianOccupation,
+    String? guardianEducation,
     String? motherName,
     String? motherOccupation,
+    String? motherEducation,
     String? fatherName,
     String? fatherOccupation,
+    String? fatherEducation,
+    String? dominantHand,
     String? ageMotherAtBirth,
     String? spouseOccupation,
   }) async {
     final db = AppDb.instance.db;
-    return db.insert(DbSchema.tLearners, {
+    final values = {
       DbSchema.cLearnerClassId: classId,
       DbSchema.cLearnerFirstName: firstName.trim(),
       DbSchema.cLearnerLastName: lastName.trim(),
@@ -42,15 +65,24 @@ class LearnerService {
       DbSchema.cLearnerBarangay: barangay?.trim(),
       DbSchema.cLearnerParentName: parentName?.trim(),
       DbSchema.cLearnerParentOccupation: parentOccupation?.trim(),
+      DbSchema.cLearnerParentEducation: parentEducation?.trim(),
+      DbSchema.cLearnerGuardianName: guardianName?.trim(),
+      DbSchema.cLearnerGuardianOccupation: guardianOccupation?.trim(),
+      DbSchema.cLearnerGuardianEducation: guardianEducation?.trim(),
       DbSchema.cLearnerMotherName: motherName?.trim(),
       DbSchema.cLearnerMotherOccupation: motherOccupation?.trim(),
+      DbSchema.cLearnerMotherEducation: motherEducation?.trim(),
       DbSchema.cLearnerFatherName: fatherName?.trim(),
       DbSchema.cLearnerFatherOccupation: fatherOccupation?.trim(),
+      DbSchema.cLearnerFatherEducation: fatherEducation?.trim(),
+      DbSchema.cLearnerDominantHand: dominantHand?.trim(),
       DbSchema.cLearnerAgeMotherAtBirth: ageMotherAtBirth?.trim(),
       DbSchema.cLearnerSpouseOccupation: spouseOccupation?.trim(),
       DbSchema.cLearnerStatus: 'active',
       DbSchema.cLearnerCreatedAt: DateTime.now().toIso8601String(),
-    });
+    };
+    final filtered = await _filterExistingLearnerColumns(values);
+    return db.insert(DbSchema.tLearners, filtered);
   }
 
   Future<void> updateLearner({
@@ -69,10 +101,17 @@ class LearnerService {
     String? barangay,
     String? parentName,
     String? parentOccupation,
+    String? parentEducation,
+    String? guardianName,
+    String? guardianOccupation,
+    String? guardianEducation,
     String? motherName,
     String? motherOccupation,
+    String? motherEducation,
     String? fatherName,
     String? fatherOccupation,
+    String? fatherEducation,
+    String? dominantHand,
     String? ageMotherAtBirth,
     String? spouseOccupation,
   }) async {
@@ -113,11 +152,26 @@ class LearnerService {
     if (parentOccupation != null) {
       values[DbSchema.cLearnerParentOccupation] = parentOccupation.trim();
     }
+    if (parentEducation != null) {
+      values[DbSchema.cLearnerParentEducation] = parentEducation.trim();
+    }
+    if (guardianName != null) {
+      values[DbSchema.cLearnerGuardianName] = guardianName.trim();
+    }
+    if (guardianOccupation != null) {
+      values[DbSchema.cLearnerGuardianOccupation] = guardianOccupation.trim();
+    }
+    if (guardianEducation != null) {
+      values[DbSchema.cLearnerGuardianEducation] = guardianEducation.trim();
+    }
     if (motherName != null) {
       values[DbSchema.cLearnerMotherName] = motherName.trim();
     }
     if (motherOccupation != null) {
       values[DbSchema.cLearnerMotherOccupation] = motherOccupation.trim();
+    }
+    if (motherEducation != null) {
+      values[DbSchema.cLearnerMotherEducation] = motherEducation.trim();
     }
     if (fatherName != null) {
       values[DbSchema.cLearnerFatherName] = fatherName.trim();
@@ -125,16 +179,23 @@ class LearnerService {
     if (fatherOccupation != null) {
       values[DbSchema.cLearnerFatherOccupation] = fatherOccupation.trim();
     }
+    if (fatherEducation != null) {
+      values[DbSchema.cLearnerFatherEducation] = fatherEducation.trim();
+    }
+    if (dominantHand != null) {
+      values[DbSchema.cLearnerDominantHand] = dominantHand.trim();
+    }
     if (ageMotherAtBirth != null) {
       values[DbSchema.cLearnerAgeMotherAtBirth] = ageMotherAtBirth.trim();
     }
     if (spouseOccupation != null) {
       values[DbSchema.cLearnerSpouseOccupation] = spouseOccupation.trim();
     }
+    final filtered = await _filterExistingLearnerColumns(values);
 
     await db.update(
       DbSchema.tLearners,
-      values,
+      filtered,
       where: '${DbSchema.cLearnerId}=?',
       whereArgs: [learnerId],
     );
@@ -191,6 +252,7 @@ class LearnerService {
       whereArgs: [learnerId],
     );
   }
+
   Future<bool> learnerExists({
     required int classId,
     required String firstName,

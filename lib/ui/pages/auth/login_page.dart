@@ -63,6 +63,26 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  Future<void> _showForgotPasswordDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Forgot Password'),
+          content: const Text(
+            'Please contact your system administrator to reset your password.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AuthLayout(
@@ -79,14 +99,15 @@ class _LoginPageState extends State<LoginPage> {
                 color: Colors.black,
                 fontWeight: FontWeight.w500,
               ),
-              decoration: AuthFormParts.inputDecoration(
-                'juan.delacruz@deped.gov.ph',
-              ).copyWith(
-                hintStyle: const TextStyle(
-                  color: Colors.grey,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              decoration:
+                  AuthFormParts.inputDecoration(
+                    'juan.delacruz@deped.gov.ph',
+                  ).copyWith(
+                    hintStyle: const TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
               keyboardType: TextInputType.emailAddress,
               validator: Validators.email,
             ),
@@ -114,8 +135,24 @@ class _LoginPageState extends State<LoginPage> {
                   return 'Please enter your password';
                 }
                 return null;
-              },            ),
-            const SizedBox(height: 14),
+              },
+            ),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: loading ? null : _showForgotPasswordDialog,
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 0,
+                    vertical: 4,
+                  ),
+                ),
+                child: const Text('Forgot Password?'),
+              ),
+            ),
+            const SizedBox(height: 8),
             _roleSelector(),
             const SizedBox(height: 18),
             ElevatedButton(

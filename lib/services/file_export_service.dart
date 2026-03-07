@@ -6,32 +6,32 @@ import 'package:file_saver/file_saver.dart';
 class FileExportService {
 
   // ================= CSV =================
-  Future<void> saveCsv({
+  Future<bool> saveCsv({
     required String filename,
     required String csvText,
   }) async {
     final bytes = Uint8List.fromList(csvText.codeUnits);
-    await _saveFile(filename, bytes, 'csv');
+    return _saveFile(filename, bytes, 'csv');
   }
 
   // ================= XLSX =================
-  Future<void> saveXlsx({
+  Future<bool> saveXlsx({
     required String filename,
     required Uint8List xlsxBytes,
   }) async {
-    await _saveFile(filename, xlsxBytes, 'xlsx');
+    return _saveFile(filename, xlsxBytes, 'xlsx');
   }
 
   // ================= PDF =================
-  Future<void> savePdf({
+  Future<bool> savePdf({
     required String filename,
     required Uint8List pdfBytes,
   }) async {
-    await _saveFile(filename, pdfBytes, 'pdf');
+    return _saveFile(filename, pdfBytes, 'pdf');
   }
 
   // ================= CORE SAVE LOGIC =================
-  Future<void> _saveFile(String filename, Uint8List bytes, String ext) async {
+  Future<bool> _saveFile(String filename, Uint8List bytes, String ext) async {
 
     MimeType mimeFor(String e) {
       if (e == 'pdf') return MimeType.pdf;
@@ -46,7 +46,7 @@ class FileExportService {
         ext: ext,
         mimeType: mimeFor(ext),
       );
-      return;
+      return true;
     }
 
     if (Platform.isAndroid || Platform.isIOS) {
@@ -56,7 +56,7 @@ class FileExportService {
         ext: ext,
         mimeType: mimeFor(ext),
       );
-      return;
+      return true;
     }
 
     final path = await FilePicker.platform.saveFile(
@@ -64,9 +64,10 @@ class FileExportService {
       fileName: '$filename.$ext',
     );
 
-    if (path == null) return; // user cancelled
+    if (path == null) return false; // user cancelled
 
     final file = File(path);
     await file.writeAsBytes(bytes);
+    return true;
   }
 }

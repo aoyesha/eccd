@@ -1,6 +1,6 @@
 class DbSchema {
-  // V7: add label column to rollup_sources for display in detail page.
-  static const int dbVersion = 7;
+  // V10: add dominant hand field for learners.
+  static const int dbVersion = 10;
 
   // USERS
   static const String tUsers = 'users';
@@ -47,10 +47,17 @@ class DbSchema {
   static const String cLearnerBarangay = 'barangay';
   static const String cLearnerParentName = 'parent_name';
   static const String cLearnerParentOccupation = 'parent_occupation';
+  static const String cLearnerParentEducation = 'parent_education';
+  static const String cLearnerGuardianName = 'guardian_name';
+  static const String cLearnerGuardianOccupation = 'guardian_occupation';
+  static const String cLearnerGuardianEducation = 'guardian_education';
   static const String cLearnerMotherName = 'mother_name';
   static const String cLearnerMotherOccupation = 'mother_occupation';
+  static const String cLearnerMotherEducation = 'mother_education';
   static const String cLearnerFatherName = 'father_name';
   static const String cLearnerFatherOccupation = 'father_occupation';
+  static const String cLearnerFatherEducation = 'father_education';
+  static const String cLearnerDominantHand = 'dominant_hand';
   static const String cLearnerAgeMotherAtBirth = 'age_mother_at_birth';
   static const String cLearnerSpouseOccupation = 'spouse_occupation';
   static const String cLearnerStatus = 'status'; // active|dropped
@@ -61,7 +68,7 @@ class DbSchema {
   static const String cAssessId = 'id';
   static const String cAssessLearnerId = 'learner_id';
   static const String cAssessClassId = 'class_id';
-  static const String cAssessType = 'type'; // pre|post
+  static const String cAssessType = 'type'; // pre|post|conditional
   static const String cAssessDate = 'date_iso';
   static const String cAssessAgeAt = 'age_at_assessment';
   static const String cAssessLanguage = 'language'; // english|tagalog

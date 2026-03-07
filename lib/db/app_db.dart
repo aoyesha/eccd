@@ -35,6 +35,15 @@ class AppDb {
         if (oldVersion < 7) {
           await _upgradeToV7(db);
         }
+        if (oldVersion < 8) {
+          await _upgradeToV8(db);
+        }
+        if (oldVersion < 9) {
+          await _upgradeToV9(db);
+        }
+        if (oldVersion < 10) {
+          await _upgradeToV10(db);
+        }
       },
     );
   }
@@ -89,10 +98,17 @@ CREATE TABLE ${DbSchema.tLearners} (
   ${DbSchema.cLearnerBarangay} TEXT,
   ${DbSchema.cLearnerParentName} TEXT,
   ${DbSchema.cLearnerParentOccupation} TEXT,
+  ${DbSchema.cLearnerParentEducation} TEXT,
+  ${DbSchema.cLearnerGuardianName} TEXT,
+  ${DbSchema.cLearnerGuardianOccupation} TEXT,
+  ${DbSchema.cLearnerGuardianEducation} TEXT,
   ${DbSchema.cLearnerMotherName} TEXT,
   ${DbSchema.cLearnerMotherOccupation} TEXT,
+  ${DbSchema.cLearnerMotherEducation} TEXT,
   ${DbSchema.cLearnerFatherName} TEXT,
   ${DbSchema.cLearnerFatherOccupation} TEXT,
+  ${DbSchema.cLearnerFatherEducation} TEXT,
+  ${DbSchema.cLearnerDominantHand} TEXT,
   ${DbSchema.cLearnerAgeMotherAtBirth} TEXT,
   ${DbSchema.cLearnerSpouseOccupation} TEXT,
   ${DbSchema.cLearnerStatus} TEXT NOT NULL,
@@ -182,6 +198,9 @@ CREATE TABLE ${DbSchema.tRollupRows} (
     await _upgradeToV5(db);
     await _upgradeToV6(db);
     await _upgradeToV7(db);
+    await _upgradeToV8(db);
+    await _upgradeToV9(db);
+    await _upgradeToV10(db);
   }
 
   Future<void> _upgradeToV2(Database db) async {
@@ -389,6 +408,57 @@ FROM ${DbSchema.tUsers}
       DbSchema.tRollupSources,
       DbSchema.cSrcLabel,
       "TEXT NOT NULL DEFAULT ''",
+    );
+  }
+
+  Future<void> _upgradeToV8(Database db) async {
+    await _addColumnIfMissing(
+      db,
+      DbSchema.tLearners,
+      DbSchema.cLearnerParentEducation,
+      'TEXT',
+    );
+    await _addColumnIfMissing(
+      db,
+      DbSchema.tLearners,
+      DbSchema.cLearnerMotherEducation,
+      'TEXT',
+    );
+    await _addColumnIfMissing(
+      db,
+      DbSchema.tLearners,
+      DbSchema.cLearnerFatherEducation,
+      'TEXT',
+    );
+  }
+
+  Future<void> _upgradeToV9(Database db) async {
+    await _addColumnIfMissing(
+      db,
+      DbSchema.tLearners,
+      DbSchema.cLearnerGuardianName,
+      'TEXT',
+    );
+    await _addColumnIfMissing(
+      db,
+      DbSchema.tLearners,
+      DbSchema.cLearnerGuardianOccupation,
+      'TEXT',
+    );
+    await _addColumnIfMissing(
+      db,
+      DbSchema.tLearners,
+      DbSchema.cLearnerGuardianEducation,
+      'TEXT',
+    );
+  }
+
+  Future<void> _upgradeToV10(Database db) async {
+    await _addColumnIfMissing(
+      db,
+      DbSchema.tLearners,
+      DbSchema.cLearnerDominantHand,
+      'TEXT',
     );
   }
 

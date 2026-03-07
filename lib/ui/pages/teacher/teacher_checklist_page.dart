@@ -103,8 +103,11 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     });
   }
 
-  String get _effectiveType => assessmentUi == 'Post-Test' ? 'post' : 'pre';
-  bool get _conditionalOverwritePre => assessmentUi == 'Conditional Test';
+  String get _effectiveType {
+    if (assessmentUi == 'Post-Test') return 'post';
+    if (assessmentUi == 'Conditional Test') return 'conditional';
+    return 'pre';
+  }
 
   int _ageAtAssessment() {
     if (_birthDate == null) return _fallbackAge;
@@ -132,40 +135,81 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
   }
 
   Future<void> _exportPdf() async {
-    final bytes = await _pdf.buildLearnerPdf(
+    if (saving) return;
+
+    if (dirty) {
+      _showSnackBar(
+        'Please save the checklist before exporting PDF.',
+        isError: true,
+      );
+      return;
+    }
+
+    final completed = await _svc.hasCompletedAssessment(
       learnerId: widget.learnerId,
       classId: widget.classId,
       assessmentType: _effectiveType,
-      language: language,
     );
-    await _file.savePdf(
-      filename: 'learner_${widget.learnerId}_$_effectiveType',
-      pdfBytes: bytes,
-    );
+    if (!completed) {
+      _showSnackBar(
+        'Cannot export PDF. No saved checklist found for ${assessmentTypeDisplay(_effectiveType)}.',
+        isError: true,
+      );
+      return;
+    }
+
+    try {
+      final bytes = await _pdf.buildLearnerPdf(
+        learnerId: widget.learnerId,
+        classId: widget.classId,
+        assessmentType: _effectiveType,
+        language: language,
+      );
+      final saved = await _file.savePdf(
+        filename: 'learner_${widget.learnerId}_$_effectiveType',
+        pdfBytes: bytes,
+      );
+      if (!mounted) return;
+      if (saved) {
+        _showSnackBar('PDF exported successfully.');
+      } else {
+        _showSnackBar('PDF export cancelled.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e is StateError
+          ? e.message
+          : 'PDF export failed. Please try again.';
+      _showSnackBar(msg, isError: true);
+    }
   }
 
   Future<void> _save() async {
     setState(() => saving = true);
+    try {
+      await _svc.saveAssessment(
+        learnerId: widget.learnerId,
+        classId: widget.classId,
+        assessmentType: _effectiveType,
+        dateIso: date.toIso8601String(),
+        ageAtAssessment: _ageAtAssessment(),
+        ageValueForScoring: _ageValueForScoring(),
+        language: language.name,
+        answersByDomain: answers,
+      );
 
-    await _svc.saveAssessment(
-      learnerId: widget.learnerId,
-      classId: widget.classId,
-      assessmentType: _effectiveType,
-      conditionalOverwritePre: _conditionalOverwritePre,
-      dateIso: date.toIso8601String(),
-      ageAtAssessment: _ageAtAssessment(),
-      ageValueForScoring: _ageValueForScoring(),
-      language: language.name,
-      answersByDomain: answers,
-    );
-
-    if (!mounted) return;
-    setState(() {
-      saving = false;
-      dirty = false;
-    });
-
-    Navigator.pop(context);
+      if (!mounted) return;
+      setState(() {
+        saving = false;
+        dirty = false;
+      });
+      _showSnackBar('Checklist saved successfully.');
+      Navigator.pop(context);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => saving = false);
+      _showSnackBar('Failed to save checklist.', isError: true);
+    }
   }
 
   @override
@@ -224,7 +268,7 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
                           DropdownMenuItem(
                             value: 'Conditional Test',
                             child: Text(
-                              'Conditional Test (Overwrites Pre-Test)',
+                              'Conditional Test',
                             ),
                           ),
                         ],
@@ -480,6 +524,19 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
       onChanged: onChanged,
       title: Text(title),
       controlAffinity: ListTileControlAffinity.leading,
+    );
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: isError ? Colors.red.shade700 : null,
+      ),
     );
   }
 }

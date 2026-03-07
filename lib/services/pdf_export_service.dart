@@ -1,7 +1,6 @@
-import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 import '../core/constants.dart';
 import '../data/eccd_questions.dart';
@@ -22,11 +21,11 @@ class PdfExportService {
   Future<Uint8List> buildLearnerPdf({
     required int learnerId,
     required int classId,
-    required String assessmentType, // pre|post
+    required String assessmentType,
     required EccdLanguage language,
   }) async {
-
-
+    final type = assessmentType.trim().toLowerCase();
+    final t = _Txt(language);
     final db = AppDb.instance.db;
 
     final learner = (await db.query(
@@ -35,699 +34,1043 @@ class PdfExportService {
       whereArgs: [learnerId],
       limit: 1,
     )).first;
-
     final clazz = (await db.query(
       DbSchema.tClasses,
       where: '${DbSchema.cClassId}=?',
       whereArgs: [classId],
       limit: 1,
     )).first;
-
-    final assess = await db.query(
-      DbSchema.tAssessments,
-      where:
-          '${DbSchema.cAssessLearnerId}=? AND ${DbSchema.cAssessClassId}=? AND ${DbSchema.cAssessType}=?',
-      whereArgs: [learnerId, classId, assessmentType],
+    final teacherRows = await db.query(
+      DbSchema.tUsers,
+      where: '${DbSchema.cUserId}=?',
+      whereArgs: [clazz[DbSchema.cClassTeacherId]],
       limit: 1,
     );
-    if (assess.isEmpty) {
+    final teacher = teacherRows.isEmpty
+        ? <String, Object?>{}
+        : teacherRows.first;
+
+    final snaps = {
+      'pre': await _snap(learnerId, classId, 'pre'),
+      'post': await _snap(learnerId, classId, 'post'),
+      'conditional': await _snap(learnerId, classId, 'conditional'),
+    };
+    final cur = snaps[type];
+    if (cur == null) {
       throw StateError(
-        'No saved ${assessmentTypeDisplay(assessmentType)} assessment found for this learner.',
+        'No saved ${assessmentTypeDisplay(type)} assessment found for this learner.',
       );
     }
-    final assessRow = assess.first;
-    final assessId = assessRow[DbSchema.cAssessId] as int;
 
-    final domainSummaries = await db.query(
-      DbSchema.tDomainSummary,
-      where: '${DbSchema.cDomSumAssessId}=?',
-      whereArgs: [assessId],
-    );
-
-    final overall = (await db.query(
-      DbSchema.tAssessmentSummary,
-      where: '${DbSchema.cSumAssessId}=?',
-      whereArgs: [assessId],
-      limit: 1,
-    )).first;
-
-    final answers = await db.query(
-      DbSchema.tAnswers,
-      where: '${DbSchema.cAnsAssessId}=?',
-      whereArgs: [assessId],
-      orderBy: '${DbSchema.cAnsDomain} ASC, ${DbSchema.cAnsIndex} ASC',
-    );
-
-    final answersByDomain = <String, Map<int, int>>{};
-    for (final a in answers) {
-      final rawDomain = a[DbSchema.cAnsDomain] as String;
-      final domain = (rawDomain == 'Dressing' || rawDomain == 'Toilet')
-          ? 'Self Help'
-          : rawDomain;
-      int idx = a[DbSchema.cAnsIndex] as int;
-      if (rawDomain == 'Dressing' || rawDomain == 'Toilet') {
-        idx += EccdQuestions.selfHelpCore(EccdLanguage.english).length;
-      }
-      if (rawDomain == 'Toilet') {
-        idx += EccdQuestions.get('Dressing', EccdLanguage.english).length;
-      }
-      answersByDomain.putIfAbsent(domain, () => {});
-      answersByDomain[domain]![idx] = a[DbSchema.cAnsValue] as int;
-    }
-
-    final doc = pw.Document();
-    // allows for checkmarks and whatnot
-    final font = await PdfGoogleFonts.notoSansSymbols2Regular();
-
-    final docTheme = pw.PageTheme(
+    final divLogo = await _img('assets/div_logo.jpg');
+    final regLogo = await _img('assets/mimaropa_logo.png');
+    final kindergartenTop = await _imgAny([
+      'assets/kindergarte.png',
+      'assets/kindergarten.png',
+    ]);
+    final kindergartenBottom = await _imgAny([
+      'assets/kindergarted_pic.png',
+      'assets/pupils.png',
+    ]);
+    final theme = pw.PageTheme(
       pageFormat: PdfPageFormat.legal.landscape,
-      margin: const pw.EdgeInsets.all(14),
+      margin: const pw.EdgeInsets.all(12),
       theme: pw.ThemeData.withFont(
         base: pw.Font.helvetica(),
         bold: pw.Font.helveticaBold(),
       ),
     );
 
-    // [grossMotor, fineMotor, fineMotor2, SelfHelp, SelfHelpDressing, SelfHelpToilet,
-    // ReceptLang, ExpressLang, ExpressLang2,  cog, SocEmo]
-    final domainBlocks = _perDomainChecklistBlock(
-        language: language,
-        answersByDomain: answersByDomain,
-        notoSymbols: font
-    );
+    final source = <String, Map<String, Map<int, int>>>{
+      'pre': (snaps['pre']?.answersByDomain ?? {}),
+      'post': (snaps['post']?.answersByDomain ?? {}),
+      'conditional': (snaps['conditional']?.answersByDomain ?? {}),
+    };
 
+    final doc = pw.Document();
     doc.addPage(
       pw.Page(
-        pageTheme: docTheme,
-        build: (pw.Context context) {
-          return pw.Column(
+        pageTheme: theme,
+        build: (_) {
+          return pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children:[
-              // _headerBlock(clazz),
-
+            children: [
               pw.Expanded(
-                child: pw.Row(
+                child: pw.Column(
+                  children: [
+                    _domain('Social Emotional', language, source, t),
+                    pw.SizedBox(height: 4),
+                    _domain('Receptive Language', language, source, t),
+                  ],
+                ),
+              ),
+              pw.SizedBox(width: 8),
+              pw.Expanded(
+                child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Expanded(
-                      // == COLUMN 1 ==
-                      child: pw.Column(
-                        mainAxisSize: pw.MainAxisSize.min,
-                        children: [
-                          _summaryTableBlock(
-                            assessmentType: assessmentType,
-                            domainSummaries: domainSummaries,
-                            overallScaled: overall[DbSchema.cSumOverallScaled] as int,
-                            standardScore: overall[DbSchema.cSumStandardScore] as int,
-                            overallInterp:
-                                overall[DbSchema.cSumOverallInterpretation] as String,
-                            dateIso: assessRow[DbSchema.cAssessDate] as String,
-                            ageAt: assessRow[DbSchema.cAssessAgeAt] as int,
-                          ),
-                          pw.SizedBox(height:8),
-                          _interpretationLegendBlock(),
-                        ]
-                      ),
+                    _summary(snaps, t, learner),
+                    pw.SizedBox(height: 5),
+                    _interpLines(t),
+                    pw.SizedBox(height: 5),
+                    _standardScoreInterpretation(t),
+                  ],
+                ),
+              ),
+              pw.SizedBox(width: 8),
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    _header(
+                      clazz,
+                      teacher,
+                      t,
+                      divLogo,
+                      regLogo,
+                      kindergartenTop,
+                      kindergartenBottom,
                     ),
-                    pw.SizedBox(width:10),
-                    // == COLUMN 2 ==
-                    pw.Expanded(
-                      child: pw.Column(
-                        mainAxisSize: pw.MainAxisSize.min,
-                        children: [
-                          _headerBlock(clazz),
-                          pw.SizedBox(height:8),
-                          _learnerInfoBlock(learner, clazz),
-                          pw.SizedBox(height:8),
-                          domainBlocks[0],
-                          domainBlocks[1],
-                        ]
-                      ),
-                    ),
-                    pw.SizedBox(width:10),
-                    // == COLUMN 3 ==
-                    pw.Expanded(
-                      child: pw.Column(
-                        mainAxisSize: pw.MainAxisSize.min,
-                        children: [
-                          domainBlocks[2],
-                          pw.SizedBox(height:4),
-                          domainBlocks[3],
-                          pw.SizedBox(height:4),
-                          domainBlocks[4],
-                        ]
-                      ),
-                    ),
-                  ]
-                )
-              )
-            ]
+                    pw.SizedBox(height: 5),
+                    _learnerInfo(learner, clazz, t),
+                    pw.SizedBox(height: 5),
+                    _forParents(t),
+                    pw.SizedBox(height: 6),
+                    _sign(teacher, t),
+                  ],
+                ),
+              ),
+            ],
           );
-        }
+        },
       ),
     );
 
-    // === PAGE 2 ===
     doc.addPage(
       pw.Page(
-        pageTheme: docTheme,
-        build: (pw.Context context) {
-          return pw.Column(
+        pageTheme: theme,
+        build: (_) {
+          return pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children:[
+            children: [
               pw.Expanded(
-                child: pw.Row(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                child: pw.Column(
                   children: [
-                    pw.Expanded(
-                      // == COLUMN 1 ==
-                      child: pw.Column(
-                        children: [
-                          domainBlocks[5],
-                          domainBlocks[6],
-                          domainBlocks[7]
-                        ]
-                      ),
-                    ),
-                    pw.SizedBox(width:10),
-                    // == COLUMN 2 ==
-                    pw.Expanded(
-                      child: pw.Column(
-                        children: [
-                          pw.SizedBox(height:17),
-                          domainBlocks[8],
-                          domainBlocks[9]
-                        ]
-                      ),
-                    ),
-                    pw.SizedBox(width:10),
-                    // == COLUMN 3 ==
-                    pw.Expanded(
-                      child: pw.Column(
-                        children: [
-                          domainBlocks[10],
-                        ]
-                      ),
-                    ),
-                  ]
-                )
-              )
-            ]
+                    _domain('Gross Motor', language, source, t),
+                    pw.SizedBox(height: 4),
+                    _domain('Fine Motor', language, source, t),
+                  ],
+                ),
+              ),
+              pw.SizedBox(width: 8),
+              pw.Expanded(
+                child: pw.Column(
+                  children: [_domain('Self Help', language, source, t)],
+                ),
+              ),
+              pw.SizedBox(width: 8),
+              pw.Expanded(
+                child: pw.Column(
+                  children: [
+                    _domain('Expressive Language', language, source, t),
+                    pw.SizedBox(height: 4),
+                    _domain('Cognitive', language, source, t),
+                  ],
+                ),
+              ),
+            ],
           );
-        }
+        },
       ),
     );
 
     return doc.save();
   }
 
-  pw.Widget _headerBlock(Map<String, Object?> clazz) {
-    // Mirrors the official header region/school-year block style. :contentReference[oaicite:6]{index=6}
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          'Republic of the Philippines',
-          style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
-        ),
-        pw.Text(
-          'Department of Education',
-          style: const pw.TextStyle(fontSize: 10),
-        ),
-        pw.Text('Region IV-MIMAROPA', style: const pw.TextStyle(fontSize: 10)),
-        pw.SizedBox(height: 6),
-        pw.Text(
-          'S.Y. ${clazz[DbSchema.cClassSchoolYear]}',
-          style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
-        ),
-      ],
+  Future<_Snap?> _snap(int learnerId, int classId, String type) async {
+    final db = AppDb.instance.db;
+    final a = await db.query(
+      DbSchema.tAssessments,
+      where:
+          '${DbSchema.cAssessLearnerId}=? AND ${DbSchema.cAssessClassId}=? AND ${DbSchema.cAssessType}=?',
+      whereArgs: [learnerId, classId, type],
+      limit: 1,
+    );
+    if (a.isEmpty) return null;
+    final aid = a.first[DbSchema.cAssessId] as int;
+    final dom = await db.query(
+      DbSchema.tDomainSummary,
+      where: '${DbSchema.cDomSumAssessId}=?',
+      whereArgs: [aid],
+    );
+    final overall = (await db.query(
+      DbSchema.tAssessmentSummary,
+      where: '${DbSchema.cSumAssessId}=?',
+      whereArgs: [aid],
+      limit: 1,
+    )).first;
+    final ans = await db.query(
+      DbSchema.tAnswers,
+      where: '${DbSchema.cAnsAssessId}=?',
+      whereArgs: [aid],
+      orderBy: '${DbSchema.cAnsDomain} ASC, ${DbSchema.cAnsIndex} ASC',
+    );
+
+    final byDom = <String, Map<int, int>>{};
+    for (final r in ans) {
+      final rd = r[DbSchema.cAnsDomain] as String;
+      final d = (rd == 'Dressing' || rd == 'Toilet') ? 'Self Help' : rd;
+      int i = r[DbSchema.cAnsIndex] as int;
+      if (rd == 'Dressing' || rd == 'Toilet')
+        i += EccdQuestions.selfHelpCore(EccdLanguage.english).length;
+      if (rd == 'Toilet')
+        i += EccdQuestions.get('Dressing', EccdLanguage.english).length;
+      byDom.putIfAbsent(d, () => {});
+      byDom[d]![i] = r[DbSchema.cAnsValue] as int;
+    }
+
+    return _Snap(
+      type: type,
+      assess: a.first,
+      overall: overall,
+      domRows: {for (final x in dom) (x[DbSchema.cDomSumDomain] as String): x},
+      answersByDomain: byDom,
     );
   }
 
-  pw.Widget _learnerInfoBlock(
-    Map<String, Object?> learner,
+  pw.Widget _header(
     Map<String, Object?> clazz,
+    Map<String, Object?> teacher,
+    _Txt t,
+    pw.MemoryImage? left,
+    pw.MemoryImage? right,
+    pw.MemoryImage? topImage,
+    pw.MemoryImage? bottomImage,
   ) {
-    // Matches learner fields region in template. :contentReference[oaicite:7]{index=7}
-    final infoStyle = pw.TextStyle(
-      fontSize: 10,
-    );
-
-    final name =
-        '${learner[DbSchema.cLearnerLastName]}, ${learner[DbSchema.cLearnerFirstName]}';
+    final region = _v(teacher, DbSchema.cUserRegion).isEmpty
+        ? 'MIMAROPA'
+        : _v(teacher, DbSchema.cUserRegion);
+    final division = _v(teacher, DbSchema.cUserDivision);
+    final district = _v(teacher, DbSchema.cUserDistrict);
+    final school = _v(teacher, DbSchema.cUserSchool);
     return pw.Container(
       padding: const pw.EdgeInsets.all(6),
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey600),
-        borderRadius: pw.BorderRadius.circular(6),
       ),
-      child: pw.Column(
+      child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(
-            'LEARNER PROFILE',
-            style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 2),
-          pw.Text('Name: $name', style: infoStyle),
-          pw.Text('Gender: ${learner[DbSchema.cLearnerGender]}', style: infoStyle),
-          pw.Text('Age: ${learner[DbSchema.cLearnerAge]}', style: infoStyle),
-          pw.Text(
-            'Section: ${clazz[DbSchema.cClassSection]}   Grade: ${clazz[DbSchema.cClassGrade]}',
-              style: infoStyle
-          ),
-        ],
-      ),
-    );
-  }
-
-  pw.Widget _summaryTableBlock({
-    required String assessmentType,
-    required List<Map<String, Object?>> domainSummaries,
-    required int overallScaled,
-    required int standardScore,
-    required String overallInterp,
-    required String dateIso,
-    required int ageAt,
-  }) {
-    // Mirrors “SUMMARY OF ASSESSMENT” block. :contentReference[oaicite:8]{index=8}
-    final rows = <List<String>>[
-      ['DOMAIN', 'RS', 'SC', 'INTERPRETATION'],
-    ];
-
-    for (final d in _domains) {
-      final match = domainSummaries.where((x) {
-        final raw = (x[DbSchema.cDomSumDomain] ?? '').toString();
-        final normalized = (raw == 'Dressing' || raw == 'Toilet')
-            ? 'Self Help'
-            : raw;
-        return normalized == d;
-      }).toList();
-      if (match.isEmpty) continue;
-      final m = match.first;
-      rows.add([
-        d,
-        '${m[DbSchema.cDomSumRaw]}',
-        '${m[DbSchema.cDomSumScaled]}',
-        '${m[DbSchema.cDomSumInterp]}',
-      ]);
-    }
-
-    rows.add(['Sum of Scaled Scores', '', '$overallScaled', '']);
-    rows.add(['Standard Score', '', '$standardScore', overallInterp]);
-    rows.add(['Date Tested', '', _safeDate(dateIso), '']);
-    rows.add(['Age', '', '$ageAt', '']);
-
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          'SUMMARY OF ASSESSMENT (${assessmentTypeDisplay(assessmentType).toUpperCase()})',
-          style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
-        ),
-        pw.SizedBox(height: 6),
-        pw.Table.fromTextArray(
-          headers: rows.first,
-          data: rows.skip(1).toList(),
-          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-          headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-          cellStyle: const pw.TextStyle(fontSize: 9),
-          cellAlignment: pw.Alignment.centerLeft,
-          columnWidths: {
-            0: const pw.FlexColumnWidth(3.2),
-            1: const pw.FlexColumnWidth(0.7),
-            2: const pw.FlexColumnWidth(0.7),
-            3: const pw.FlexColumnWidth(1.6),
-          },
-          border: pw.TableBorder.all(color: PdfColors.grey600),
-        ),
-        pw.SizedBox(height: 6),
-        pw.Text(
-          'RS - Raw Score   SC - Scaled Score',
-          style: const pw.TextStyle(fontSize: 9),
-        ),
-      ],
-    );
-  }
-
-  pw.Widget _interpretationLegendBlock() {
-    // Standard score interpretation legend. :contentReference[oaicite:9]{index=9}
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(10),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey600),
-        borderRadius: pw.BorderRadius.circular(6),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            'INTERPRETATION OF STANDARD SCORE / DEVELOPMENT INDEX',
-            style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 6),
-          pw.Text(
-            '130 and above  - Suggest Highly Advanced Development (S.H.A.D.)',
-            style: const pw.TextStyle(fontSize: 9),
-          ),
-          pw.Text(
-            '120 - 129          - Suggest Slightly Advanced Development (S.S.A.D.)',
-            style: const pw.TextStyle(fontSize: 9),
-          ),
-          pw.Text(
-            '80  - 119           - Average Overall Development (A.D.)',
-            style: const pw.TextStyle(fontSize: 9),
-          ),
-          pw.Text(
-            '70  - 79             - Suggest Slight Delay in Overall Development                    .                          (S.S.D.O.D.)',
-            style: const pw.TextStyle(fontSize: 9),
-          ),
-          pw.Text(
-            '69 and below    - Suggest Significant Delay in Overall Development            .                          (S.S.O.O.D.)',
-            style: const pw.TextStyle(fontSize: 9),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<pw.Widget> _perDomainChecklistBlock({
-    required EccdLanguage language,
-    required Map<String, Map<int, int>> answersByDomain,
-    required pw.Font notoSymbols,
-  }) {
-    final blocks = <pw.Widget>[];
-    for (final domain in _domains) {
-      final a = answersByDomain[domain] ?? {};
-      if (domain == 'Self Help') {
-        final core = EccdQuestions.selfHelpCore(language);
-        final sections = EccdQuestions.selfHelpSections(language);
-        int offset = 0;
-        blocks.add(
-          pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.SizedBox(height: 6),
-              pw.Text(
-                'SELF HELP DOMAIN',
-                style: pw.TextStyle(
-                  fontSize: 11,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 4),
-              pw.Table(
-                border: pw.TableBorder.all(color: PdfColors.grey600),
-                columnWidths: {
-                  0: const pw.FlexColumnWidth(0.7),
-                  1: const pw.FlexColumnWidth(5),
-                  2: const pw.FlexColumnWidth(0.9),
-                },
-                children: [
-                  pw.TableRow(
-                    decoration: const pw.BoxDecoration(
-                      color: PdfColors.grey300,
-                    ),
-                    children: [
-                      _cell('No.', bold: true),
-                      _cell('Item', bold: true),
-                      _cell('✓', bold: true, symbols: notoSymbols),
-                    ],
-                  ),
-                  for (int i = 0; i < core.length; i++)
-                    pw.TableRow(
-                      children: [
-                        _cell('${i + 1}'),
-                        _cell(core[i]),
-                        _cell((a[i] ?? 0) == 1 ? '✓' : '', symbols: notoSymbols),
-                      ],
-                    ),
-                ],
-              ),
-            ],
-          ),
-        );
-        offset = core.length;
-        for (final entry in sections.entries) {
-          final qs = entry.value;
-          blocks.add(
-            pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
+          _logo(left),
+          pw.SizedBox(width: 6),
+          pw.Expanded(
+            child: pw.Column(
               children: [
-                pw.SizedBox(height: 6),
+                pw.Text(t.republic, style: const pw.TextStyle(fontSize: 8.7)),
+                pw.Text(t.department, style: const pw.TextStyle(fontSize: 8.7)),
+                pw.Text(region, style: const pw.TextStyle(fontSize: 8.7)),
+                if (division.isNotEmpty)
+                  pw.Text(
+                    '${t.division}: $division',
+                    style: const pw.TextStyle(fontSize: 8.7),
+                  ),
+                if (district.isNotEmpty)
+                  pw.Text(
+                    '${t.district}: $district',
+                    style: const pw.TextStyle(fontSize: 8.7),
+                  ),
+                if (school.isNotEmpty)
+                  pw.Text(
+                    school.toUpperCase(),
+                    style: pw.TextStyle(
+                      fontSize: 9.2,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
                 pw.Text(
-                  'SELF HELP - ${entry.key.toUpperCase()}',
+                  'S.Y. ${clazz[DbSchema.cClassSchoolYear]}',
                   style: pw.TextStyle(
-                    fontSize: 11,
+                    fontSize: 8.9,
                     fontWeight: pw.FontWeight.bold,
                   ),
                 ),
-                pw.SizedBox(height: 4),
-                pw.Table(
-                  border: pw.TableBorder.all(color: PdfColors.grey600),
-                  columnWidths: {
-                    0: const pw.FlexColumnWidth(0.7),
-                    1: const pw.FlexColumnWidth(5),
-                    2: const pw.FlexColumnWidth(0.9),
-                  },
-                  children: [
-                    pw.TableRow(
-                      decoration: const pw.BoxDecoration(
-                        color: PdfColors.grey300,
-                      ),
-                      children: [
-                        _cell('No.', bold: true),
-                        _cell('Item', bold: true),
-                        _cell('✓', bold: true, symbols: notoSymbols),
-                      ],
+                if (topImage != null) ...[
+                  pw.SizedBox(height: 5),
+                  pw.Center(
+                    child: pw.Container(
+                      height: 56,
+                      child: pw.Image(topImage, fit: pw.BoxFit.contain),
                     ),
-                    for (int i = 0; i < qs.length; i++)
-                      pw.TableRow(
-                        children: [
-                          _cell('${i + 1}'),
-                          _cell(qs[i]),
-                          _cell((a[offset + i] ?? 0) == 1 ? '✓' : '', symbols: notoSymbols),
-                        ],
-                      ),
-                  ],
+                  ),
+                ],
+                pw.SizedBox(height: 2),
+                pw.Text(
+                  t.checklist,
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(
+                    fontSize: 9.2,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
                 ),
+                if (bottomImage != null) ...[
+                  pw.SizedBox(height: 5),
+                  pw.Center(
+                    child: pw.Container(
+                      height: 60,
+                      child: pw.Image(bottomImage, fit: pw.BoxFit.contain),
+                    ),
+                  ),
+                ],
               ],
             ),
-          );
-          offset += qs.length;
-        }
-        continue;
-      }
+          ),
+          pw.SizedBox(width: 6),
+          _logo(right),
+        ],
+      ),
+    );
+  }
 
-      final qs = EccdQuestions.get(domain, language);
+  pw.Widget _logo(pw.MemoryImage? img) {
+    if (img == null) return pw.SizedBox(width: 48, height: 48);
+    return pw.SizedBox(
+      width: 48,
+      height: 48,
+      child: pw.Image(img, fit: pw.BoxFit.contain),
+    );
+  }
 
-      // FINE MOTOR
-      // splits Fine Motor into 1-4 and 5-11
-      if(domain == 'Fine Motor'){
-        blocks.add(
-          pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.SizedBox(height: 6),
-              pw.Text(
-                '$domain DOMAIN',
-                style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
-              ),
-              pw.SizedBox(height: 4),
-              pw.Table(
-                border: pw.TableBorder.all(color: PdfColors.grey600),
-                columnWidths: {
-                  0: const pw.FlexColumnWidth(0.7),
-                  1: const pw.FlexColumnWidth(5),
-                  2: const pw.FlexColumnWidth(0.9),
-                },
-                children: [
-                  pw.TableRow(
-                    decoration: const pw.BoxDecoration(color: PdfColors.grey300),
-                    children: [
-                      _cell('No.', bold: true),
-                      _cell('Item', bold: true),
-                      _cell('✓', bold: true, symbols: notoSymbols),
-                    ],
-                  ),
-                  for (int i = 0; i < 5; i++)
-                    pw.TableRow(
-                      children: [
-                        _cell('${i + 1}'),
-                        _cell(qs[i]),
-                        _cell((a[i] ?? 0) == 1 ? '✓' : '', symbols: notoSymbols),
-                      ],
-                    ),
-                ],
-              ),
-            ],
-          )
-        );
+  pw.Widget _learnerInfo(
+    Map<String, Object?> l,
+    Map<String, Object?> c,
+    _Txt t,
+  ) {
+    final sectionRaw = _v(c, DbSchema.cClassSection).isNotEmpty
+        ? _v(c, DbSchema.cClassSection)
+        : '${c[DbSchema.cClassGrade]}-${c[DbSchema.cClassSection]}';
+    final section = sectionRaw
+        .replaceAll(
+          RegExp(r'\bkindergarten\b\s*[-:]?\s*', caseSensitive: false),
+          '',
+        )
+        .trim();
+    final dominantRaw = _v(l, DbSchema.cLearnerDominantHand).toLowerCase();
+    final leftChecked =
+        dominantRaw.contains('left') || dominantRaw.contains('kaliwa');
+    final rightChecked =
+        dominantRaw.contains('right') || dominantRaw.contains('kanan');
+    final parentName = _v(l, DbSchema.cLearnerParentName);
+    final parentOccupation = _v(l, DbSchema.cLearnerParentOccupation);
+    final parentEducation = _v(l, DbSchema.cLearnerParentEducation);
+    final guardianName = _v(l, DbSchema.cLearnerGuardianName);
+    final guardianOccupation = _v(l, DbSchema.cLearnerGuardianOccupation);
+    final guardianEducation = _v(l, DbSchema.cLearnerGuardianEducation);
+    final motherName = _v(l, DbSchema.cLearnerMotherName);
+    final motherOccupation = _v(l, DbSchema.cLearnerMotherOccupation);
+    final motherEducation = _v(l, DbSchema.cLearnerMotherEducation);
+    final fatherName = _v(l, DbSchema.cLearnerFatherName);
+    final fatherOccupation = _v(l, DbSchema.cLearnerFatherOccupation);
+    final fatherEducation = _v(l, DbSchema.cLearnerFatherEducation);
+    final hasGuardian =
+        guardianName.isNotEmpty ||
+        guardianOccupation.isNotEmpty ||
+        guardianEducation.isNotEmpty;
 
-        blocks.add(
-          pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.SizedBox(height: 6),
-              pw.Table(
-                border: pw.TableBorder.all(color: PdfColors.grey600),
-                columnWidths: {
-                  0: const pw.FlexColumnWidth(0.7),
-                  1: const pw.FlexColumnWidth(5),
-                  2: const pw.FlexColumnWidth(0.9),
-                },
-                children: [
-                  for (int i = 5; i < qs.length; i++)
-                    pw.TableRow(
-                      children: [
-                        _cell('${i + 1}'),
-                        _cell(qs[i]),
-                        _cell((a[i] ?? 0) == 1 ? '✓' : '', symbols: notoSymbols),
-                      ],
-                    ),
-                ],
-              ),
-            ],
-          )
-        );
-
-        continue;
-      }
-
-      // EXPRESSIVE LANGUAGE
-      // Splits into 1-4 and 5-8
-      if(domain == 'Expressive Language'){
-        blocks.add(
-          pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.SizedBox(height: 6),
-              pw.Text(
-                '$domain DOMAIN',
-                style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
-              ),
-              pw.SizedBox(height: 4),
-              pw.Table(
-                border: pw.TableBorder.all(color: PdfColors.grey600),
-                columnWidths: {
-                  0: const pw.FlexColumnWidth(0.7),
-                  1: const pw.FlexColumnWidth(5),
-                  2: const pw.FlexColumnWidth(0.9),
-                },
-                children: [
-                  pw.TableRow(
-                    decoration: const pw.BoxDecoration(color: PdfColors.grey300),
-                    children: [
-                      _cell('No.', bold: true),
-                      _cell('Item', bold: true),
-                      _cell('✓', bold: true, symbols: notoSymbols),
-                    ],
-                  ),
-                  for (int i = 0; i < 5; i++)
-                    pw.TableRow(
-                      children: [
-                        _cell('${i + 1}'),
-                        _cell(qs[i]),
-                        _cell((a[i] ?? 0) == 1 ? '✓' : '', symbols: notoSymbols),
-                      ],
-                    ),
-                ],
-              ),
-            ],
-          )
-        );
-
-        blocks.add(
-          pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.SizedBox(height: 6),
-              pw.Table(
-                border: pw.TableBorder.all(color: PdfColors.grey600),
-                columnWidths: {
-                  0: const pw.FlexColumnWidth(0.7),
-                  1: const pw.FlexColumnWidth(5),
-                  2: const pw.FlexColumnWidth(0.9),
-                },
-                children: [
-                  for (int i = 5; i < qs.length; i++)
-                    pw.TableRow(
-                      children: [
-                        _cell('${i + 1}'),
-                        _cell(qs[i]),
-                        _cell((a[i] ?? 0) == 1 ? '✓' : '', symbols: notoSymbols),
-                      ],
-                    ),
-                ],
-              ),
-            ],
-          )
-        );
-
-        continue;
-      }
-
-      blocks.add(
-        pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
+    pw.Widget line(String label, String value, {double labelWidth = 130}) {
+      final v = value.trim();
+      return pw.Padding(
+        padding: const pw.EdgeInsets.only(bottom: 2),
+        child: pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.end,
           children: [
-            pw.SizedBox(height: 6),
-            pw.Text(
-              '$domain DOMAIN',
-              style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
+            pw.SizedBox(
+              width: labelWidth,
+              child: pw.Text(
+                '$label:',
+                style: const pw.TextStyle(fontSize: 8.8),
+              ),
             ),
-            pw.SizedBox(height: 4),
-            pw.Table(
-              border: pw.TableBorder.all(color: PdfColors.grey600),
-              columnWidths: {
-                0: const pw.FlexColumnWidth(0.7),
-                1: const pw.FlexColumnWidth(5),
-                2: const pw.FlexColumnWidth(0.9),
-              },
-              children: [
-                pw.TableRow(
-                  decoration: const pw.BoxDecoration(color: PdfColors.grey300),
-                  children: [
-                    _cell('No.', bold: true),
-                    _cell('Item', bold: true),
-                    _cell('✓', bold: true, symbols: notoSymbols),
-                  ],
-                ),
-                for (int i = 0; i < qs.length; i++)
-                  pw.TableRow(
-                    children: [
-                      _cell('${i + 1}'),
-                      _cell(qs[i]),
-                      _cell((a[i] ?? 0) == 1 ? '✓' : '', symbols: notoSymbols),
-                    ],
+            pw.Expanded(
+              child: pw.Container(
+                padding: const pw.EdgeInsets.only(bottom: 1),
+                decoration: const pw.BoxDecoration(
+                  border: pw.Border(
+                    bottom: pw.BorderSide(color: PdfColors.black, width: 0.8),
                   ),
-              ],
+                ),
+                child: pw.Text(v, style: const pw.TextStyle(fontSize: 8.8)),
+              ),
             ),
           ],
         ),
       );
     }
-    return blocks;
-  }
 
-  pw.Widget _cell(String text, {bool bold = false, pw.Font? symbols}) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.all(4),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(
-          fontSize: 8.5,
-          fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-          fontFallback: [
-            if(symbols != null) symbols,
-          ]
-        ),
+    return pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.all(6),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey600),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          line(t.lrn, _v(l, DbSchema.cLearnerLrn)),
+          line(t.name, _full(l)),
+          pw.Row(
+            children: [
+              pw.Expanded(
+                child: line(
+                  t.gender,
+                  _v(l, DbSchema.cLearnerGender),
+                  labelWidth: 62,
+                ),
+              ),
+              pw.SizedBox(width: 8),
+              pw.Expanded(
+                child: line(t.age, _v(l, DbSchema.cLearnerAge), labelWidth: 40),
+              ),
+              pw.SizedBox(width: 8),
+              pw.Expanded(
+                flex: 2,
+                child: line(t.section, section, labelWidth: 54),
+              ),
+            ],
+          ),
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(bottom: 2),
+            child: pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                pw.SizedBox(
+                  width: 130,
+                  child: pw.Text(
+                    '${t.dominantHand}:',
+                    style: const pw.TextStyle(fontSize: 8.8),
+                  ),
+                ),
+                pw.Expanded(
+                  child: pw.Row(
+                    children: [
+                      pw.Expanded(
+                        child: _checkboxChoice(t.leftLabel, leftChecked),
+                      ),
+                      pw.SizedBox(width: 8),
+                      pw.Expanded(
+                        child: _checkboxChoice(t.rightLabel, rightChecked),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          line(t.address, _v(l, DbSchema.cLearnerBarangay)),
+          if (hasGuardian) ...[
+            line(t.parent, parentName),
+            line(t.parentOcc, parentOccupation),
+            line(t.parentEdu, parentEducation),
+            line(t.guardian, guardianName),
+            line(t.guardianOcc, guardianOccupation),
+            line(t.guardianEdu, guardianEducation),
+          ] else ...[
+            line(t.mother, motherName),
+            line(t.motherOcc, motherOccupation),
+            line(t.motherEdu, motherEducation),
+            line(t.father, fatherName),
+            line(t.fatherOcc, fatherOccupation),
+            line(t.fatherEdu, fatherEducation),
+          ],
+          line(t.motherAgeAtBirth, _v(l, DbSchema.cLearnerAgeMotherAtBirth)),
+        ],
       ),
     );
   }
 
-  String _safeDate(String iso) {
-    // Minimal display; keeps it stable without extra deps
-    return iso.length >= 10 ? iso.substring(0, 10) : iso;
+  pw.Widget _summary(
+    Map<String, _Snap?> snaps,
+    _Txt t,
+    Map<String, Object?> learner,
+  ) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          t.summary,
+          style: pw.TextStyle(fontSize: 11.2, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.SizedBox(height: 4),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.grey600),
+          columnWidths: const {
+            0: pw.FlexColumnWidth(2.3),
+            1: pw.FlexColumnWidth(1.4),
+            2: pw.FlexColumnWidth(1.4),
+            3: pw.FlexColumnWidth(1.4),
+          },
+          children: [
+            pw.TableRow(
+              decoration: const pw.BoxDecoration(color: PdfColors.grey300),
+              children: [
+                _c(t.domains, b: true),
+                _c(t.firstCol, b: true),
+                _c(t.secondCol, b: true),
+                _c(t.thirdCol, b: true),
+              ],
+            ),
+          ],
+        ),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.grey600),
+          columnWidths: {
+            0: const pw.FlexColumnWidth(2.3),
+            1: const pw.FlexColumnWidth(0.7),
+            2: const pw.FlexColumnWidth(0.7),
+            3: const pw.FlexColumnWidth(0.7),
+            4: const pw.FlexColumnWidth(0.7),
+            5: const pw.FlexColumnWidth(0.7),
+            6: const pw.FlexColumnWidth(0.7),
+          },
+          children: [
+            pw.TableRow(
+              decoration: const pw.BoxDecoration(color: PdfColors.grey300),
+              children: [
+                _c('', b: true),
+                _c('RS', b: true),
+                _c('SC', b: true),
+                _c('RS', b: true),
+                _c('SC', b: true),
+                _c('RS', b: true),
+                _c('SC', b: true),
+              ],
+            ),
+            for (final d in _domains)
+              pw.TableRow(
+                children: [
+                  _c(d),
+                  _c(_domainRaw(snaps['pre'], d)),
+                  _c(_domainScaled(snaps['pre'], d)),
+                  _c(_domainRaw(snaps['post'], d)),
+                  _c(_domainScaled(snaps['post'], d)),
+                  _c(_domainRaw(snaps['conditional'], d)),
+                  _c(_domainScaled(snaps['conditional'], d)),
+                ],
+              ),
+          ],
+        ),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.grey600),
+          columnWidths: const {
+            0: pw.FlexColumnWidth(2.3),
+            1: pw.FlexColumnWidth(1.4),
+            2: pw.FlexColumnWidth(1.4),
+            3: pw.FlexColumnWidth(1.4),
+          },
+          children: [
+            pw.TableRow(
+              children: [
+                _c(t.sumScaled),
+                _c(_overallScaled(snaps['pre'])),
+                _c(_overallScaled(snaps['post'])),
+                _c(_overallScaled(snaps['conditional'])),
+              ],
+            ),
+            pw.TableRow(
+              children: [
+                _c(t.standardScore),
+                _c(_overallStandard(snaps['pre'])),
+                _c(_overallStandard(snaps['post'])),
+                _c(_overallStandard(snaps['conditional'])),
+              ],
+            ),
+            pw.TableRow(
+              children: [
+                _c(t.dateTested),
+                _c(_date(snaps['pre'])),
+                _c(_date(snaps['post'])),
+                _c(_date(snaps['conditional'])),
+              ],
+            ),
+            pw.TableRow(
+              children: [
+                _c(t.age),
+                _c(_ageYm(snaps['pre'], learner)),
+                _c(_ageYm(snaps['post'], learner)),
+                _c(_ageYm(snaps['conditional'], learner)),
+              ],
+            ),
+          ],
+        ),
+        pw.SizedBox(height: 3),
+        pw.Text(
+          'RS - Raw Score   SC - Scaled Score   UP - Pre   PP - Post   HP - Cond',
+          style: const pw.TextStyle(fontSize: 8.8),
+        ),
+      ],
+    );
   }
+
+  pw.Widget _interpLines(_Txt t) {
+    pw.Widget b(String x) => pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          '$x:',
+          style: pw.TextStyle(fontSize: 8.6, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.Text('_' * 69, style: const pw.TextStyle(fontSize: 8)),
+        pw.Text('_' * 69, style: const pw.TextStyle(fontSize: 8)),
+      ],
+    );
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(6),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey600),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Center(
+            child: pw.Text(
+              t.interpretation,
+              style: pw.TextStyle(
+                fontSize: 9.5,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ),
+          pw.SizedBox(height: 3),
+          b(t.firstAssessment),
+          pw.SizedBox(height: 2),
+          b(t.secondAssessment),
+          pw.SizedBox(height: 2),
+          b(t.thirdAssessment),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _standardScoreInterpretation(_Txt t) => pw.Container(
+    padding: const pw.EdgeInsets.all(6),
+    decoration: pw.BoxDecoration(
+      border: pw.Border.all(color: PdfColors.grey600),
+    ),
+    child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Center(
+          child: pw.Text(
+            'INTERPRETATION OF STANDARD SCORE OR',
+            style: pw.TextStyle(fontSize: 9.4, fontWeight: pw.FontWeight.bold),
+          ),
+        ),
+        pw.Center(
+          child: pw.Text(
+            'DEVELOPMENT INDEX',
+            style: pw.TextStyle(fontSize: 9.4, fontWeight: pw.FontWeight.bold),
+          ),
+        ),
+        pw.SizedBox(height: 3),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.grey600),
+          columnWidths: const {
+            0: pw.FlexColumnWidth(1.2),
+            1: pw.FlexColumnWidth(2.2),
+          },
+          children: [
+            pw.TableRow(
+              decoration: const pw.BoxDecoration(color: PdfColors.grey300),
+              children: [
+                _c('STANDARD SCORE', b: true),
+                _c('INTERPRETATION', b: true),
+              ],
+            ),
+            pw.TableRow(
+              children: [
+                _c('130 and above'),
+                _c('Suggest Highly Advanced Development (S.H.A.D.)'),
+              ],
+            ),
+            pw.TableRow(
+              children: [
+                _c('120 - 129'),
+                _c('Suggests Slightly Advanced Development(S.S.A.D.)'),
+              ],
+            ),
+            pw.TableRow(
+              children: [
+                _c('80 - 119'),
+                _c('Average Overall Development (A.D.)'),
+              ],
+            ),
+            pw.TableRow(
+              children: [
+                _c('70 - 79'),
+                _c('Suggest Slight Delay In Overall Development(S.S.D.O.D.)'),
+              ],
+            ),
+            pw.TableRow(
+              children: [
+                _c('69 and below'),
+                _c(
+                  'Suggest Significant Delay In Overall Development(S.S.O.O.D.)',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+
+  pw.Widget _forParents(_Txt t) => pw.Column(
+    crossAxisAlignment: pw.CrossAxisAlignment.start,
+    children: [
+      pw.Text(
+        t.forParents,
+        style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
+      ),
+      pw.SizedBox(height: 2),
+      pw.Container(
+        padding: const pw.EdgeInsets.all(7),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: PdfColors.grey600),
+          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
+        ),
+        child: pw.Text(
+          t.parentsBody,
+          style: const pw.TextStyle(fontSize: 8.2),
+          textAlign: pw.TextAlign.justify,
+        ),
+      ),
+    ],
+  );
+
+  pw.Widget _sign(Map<String, Object?> teacher, _Txt t) {
+    final tn = _v(teacher, DbSchema.cUserName).toUpperCase();
+    return pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.only(top: 4),
+      child: pw.Column(
+        children: [
+          pw.Text(
+            tn.isEmpty ? '_' * 26 : tn,
+            textAlign: pw.TextAlign.center,
+            style: const pw.TextStyle(decoration: pw.TextDecoration.underline),
+          ),
+          pw.Text(
+            t.teacher,
+            style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+            textAlign: pw.TextAlign.center,
+          ),
+          pw.SizedBox(height: 14),
+          pw.Text('_' * 26, textAlign: pw.TextAlign.center),
+          pw.Text(
+            t.principal,
+            style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+            textAlign: pw.TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _domain(
+    String d,
+    EccdLanguage lang,
+    Map<String, Map<String, Map<int, int>>> src,
+    _Txt t,
+  ) {
+    final qs = EccdQuestions.get(d, lang);
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          '${d.toUpperCase()} ${t.domain}',
+          style: pw.TextStyle(fontSize: 10.0, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.SizedBox(height: 1),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.grey600),
+          columnWidths: const {
+            0: pw.FlexColumnWidth(0.9),
+            1: pw.FlexColumnWidth(5.4),
+            2: pw.FlexColumnWidth(0.7),
+            3: pw.FlexColumnWidth(0.7),
+            4: pw.FlexColumnWidth(0.7),
+          },
+          children: [
+            pw.TableRow(
+              decoration: const pw.BoxDecoration(color: PdfColors.grey300),
+              children: [
+                _c(t.no, b: true),
+                _c(t.items, b: true),
+                _c('UP', b: true),
+                _c('PP', b: true),
+                _c('HP', b: true),
+              ],
+            ),
+            for (int i = 0; i < qs.length; i++)
+              pw.TableRow(
+                children: [
+                  _c('${i + 1}'),
+                  _c(qs[i]),
+                  _c((src['pre']?[d]?[i] ?? 0) == 1 ? '/' : ''),
+                  _c((src['post']?[d]?[i] ?? 0) == 1 ? '/' : ''),
+                  _c((src['conditional']?[d]?[i] ?? 0) == 1 ? '/' : ''),
+                ],
+              ),
+          ],
+        ),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.grey600),
+          columnWidths: const {
+            0: pw.FlexColumnWidth(6.3),
+            1: pw.FlexColumnWidth(0.7),
+            2: pw.FlexColumnWidth(0.7),
+            3: pw.FlexColumnWidth(0.7),
+          },
+          children: [
+            pw.TableRow(
+              decoration: const pw.BoxDecoration(color: PdfColors.grey300),
+              children: [
+                _c(t.scoreRow, b: true),
+                _c('${_domainScore(src['pre'], d, qs.length)}', b: true),
+                _c('${_domainScore(src['post'], d, qs.length)}', b: true),
+                _c(
+                  '${_domainScore(src['conditional'], d, qs.length)}',
+                  b: true,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  int _domainScore(
+    Map<String, Map<int, int>>? answersByDomain,
+    String domain,
+    int itemCount,
+  ) {
+    if (answersByDomain == null) return 0;
+    int sum = 0;
+    for (int i = 0; i < itemCount; i++) {
+      sum += (answersByDomain[domain]?[i] ?? 0);
+    }
+    return sum;
+  }
+
+  String _domainRaw(_Snap? snap, String domain) {
+    if (snap == null) return '';
+    return '${snap.domRows[domain]?[DbSchema.cDomSumRaw] ?? ''}';
+  }
+
+  String _domainScaled(_Snap? snap, String domain) {
+    if (snap == null) return '';
+    return '${snap.domRows[domain]?[DbSchema.cDomSumScaled] ?? ''}';
+  }
+
+  String _overallScaled(_Snap? snap) =>
+      snap == null ? '' : '${snap.overall[DbSchema.cSumOverallScaled] ?? ''}';
+
+  String _overallStandard(_Snap? snap) =>
+      snap == null ? '' : '${snap.overall[DbSchema.cSumStandardScore] ?? ''}';
+
+  String _date(_Snap? snap) =>
+      snap == null ? '' : _safe('${snap.assess[DbSchema.cAssessDate] ?? ''}');
+
+  String _age(_Snap? snap) =>
+      snap == null ? '' : '${snap.assess[DbSchema.cAssessAgeAt] ?? ''}';
+
+  String _ageYm(_Snap? snap, Map<String, Object?> learner) {
+    if (snap == null) return '';
+    final birthRaw = _v(learner, DbSchema.cLearnerBirthDate);
+    if (birthRaw.isEmpty) return _age(snap);
+    final b = DateTime.tryParse(birthRaw);
+    final d = DateTime.tryParse('${snap.assess[DbSchema.cAssessDate] ?? ''}');
+    if (b == null || d == null) return _age(snap);
+    int months = (d.year - b.year) * 12 + (d.month - b.month);
+    if (d.day < b.day) months -= 1;
+    if (months < 0) months = 0;
+    final years = months ~/ 12;
+    final rem = months % 12;
+    return '$years.$rem';
+  }
+
+  pw.Widget _c(String s, {bool b = false}) => pw.Container(
+    padding: const pw.EdgeInsets.all(2.0),
+    alignment: pw.Alignment.centerLeft,
+    child: pw.Text(
+      s,
+      style: pw.TextStyle(
+        fontSize: 8.2,
+        fontWeight: b ? pw.FontWeight.bold : pw.FontWeight.normal,
+      ),
+    ),
+  );
+
+  Future<pw.MemoryImage?> _img(String p) async {
+    try {
+      final b = await rootBundle.load(p);
+      return pw.MemoryImage(b.buffer.asUint8List());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<pw.MemoryImage?> _imgAny(List<String> paths) async {
+    for (final p in paths) {
+      final img = await _img(p);
+      if (img != null) return img;
+    }
+    return null;
+  }
+
+  pw.Widget _checkboxChoice(String label, bool checked) => pw.Container(
+    padding: const pw.EdgeInsets.only(bottom: 1),
+    child: pw.Text(
+      '[${checked ? '/' : ' '}] $label',
+      style: const pw.TextStyle(fontSize: 8.8),
+    ),
+  );
+
+  String _v(Map<String, Object?> r, String k) => (r[k] ?? '').toString().trim();
+
+  String _full(Map<String, Object?> l) => [
+    _v(l, DbSchema.cLearnerFirstName),
+    _v(l, DbSchema.cLearnerMiddleName),
+    _v(l, DbSchema.cLearnerLastName),
+  ].where((e) => e.isNotEmpty).join(' ');
+  String _safe(String iso) => iso.length >= 10 ? iso.substring(0, 10) : iso;
+}
+
+class _Snap {
+  final String type;
+  final Map<String, Object?> assess;
+  final Map<String, Object?> overall;
+  final Map<String, Map<String, Object?>> domRows;
+  final Map<String, Map<int, int>> answersByDomain;
+  _Snap({
+    required this.type,
+    required this.assess,
+    required this.overall,
+    required this.domRows,
+    required this.answersByDomain,
+  });
+}
+
+class _Txt {
+  final String republic = 'Republic of the Philippines';
+  final String department = 'Department of Education';
+  final String division = 'Division';
+  final String district = 'District';
+  final String checklist =
+      'Early Childhood Care and Development (ECD) Checklist';
+  final String lrn;
+  final String name;
+  final String gender;
+  final String age;
+  final String section;
+  final String dominantHand;
+  final String leftLabel;
+  final String rightLabel;
+  final String address;
+  final String parent;
+  final String parentOcc;
+  final String parentEdu;
+  final String guardian;
+  final String guardianOcc;
+  final String guardianEdu;
+  final String mother;
+  final String motherOcc;
+  final String motherEdu;
+  final String father;
+  final String fatherOcc;
+  final String fatherEdu;
+  final String motherAgeAtBirth;
+  final String summary = 'SUMMARY OF ASSESSMENT';
+  final String interpretation = 'INTERPRETATION';
+  final String domain = 'DOMAIN';
+  final String domains;
+  final String sumScaled = 'Sum of Scaled Scores';
+  final String standardScore = 'Standard Score';
+  final String dateTested = 'Date Tested';
+  final String no = 'No.';
+  final String items = 'Items';
+  final String firstCol;
+  final String secondCol;
+  final String thirdCol;
+  final String scoreRow;
+  final String firstAssessment;
+  final String secondAssessment;
+  final String thirdAssessment;
+  final String forParents = 'For Parents';
+  final String parentsBody =
+      'The Philippine Early Childhood Checklist (Form 2) contains developmental skills, behavior, and knowledge of children aged 3 to 5.11 years old. Use this as a guide in understanding your child and in providing proper care, teaching, and support for growth and development.';
+  final String principal = 'PRINCIPAL';
+  final String teacher = 'TEACHER';
+
+  _Txt(EccdLanguage lang)
+    : lrn = 'LRN',
+      name = lang == EccdLanguage.tagalog ? 'Pangalan' : 'Name',
+      gender = lang == EccdLanguage.tagalog ? 'Kasarian' : 'Gender',
+      age = lang == EccdLanguage.tagalog ? 'Edad' : 'Age',
+      section = lang == EccdLanguage.tagalog ? 'Seksyon' : 'Section',
+      dominantHand = lang == EccdLanguage.tagalog
+          ? 'Ginagamit na kamay'
+          : 'Dominant hand',
+      leftLabel = lang == EccdLanguage.tagalog ? 'Kaliwa' : 'Left',
+      rightLabel = lang == EccdLanguage.tagalog ? 'Kanan' : 'Right',
+      address = lang == EccdLanguage.tagalog ? 'Tirahan' : 'Address',
+      parent = lang == EccdLanguage.tagalog ? 'Magulang' : 'Parent',
+      parentOcc = lang == EccdLanguage.tagalog
+          ? 'Hanapbuhay ng Magulang'
+          : 'Parent Occupation',
+      parentEdu = lang == EccdLanguage.tagalog
+          ? 'Pinakamataas na Natapos na Pag-aaral ng Magulang'
+          : 'Parent Highest Educational Attainment',
+      guardian = lang == EccdLanguage.tagalog ? 'Tagapag-alaga' : 'Guardian',
+      guardianOcc = lang == EccdLanguage.tagalog
+          ? 'Hanapbuhay ng Tagapag-alaga'
+          : 'Guardian Occupation',
+      guardianEdu = lang == EccdLanguage.tagalog
+          ? 'Pinakamataas na Natapos na Pag-aaral ng Tagapag-alaga'
+          : 'Guardian Highest Educational Attainment',
+      mother = lang == EccdLanguage.tagalog ? 'Pangalan ng Ina' : 'Mother Name',
+      motherOcc = lang == EccdLanguage.tagalog
+          ? 'Hanapbuhay ng Ina'
+          : 'Mother Occupation',
+      motherEdu = lang == EccdLanguage.tagalog
+          ? 'Pinakamataas na Natapos na Pag-aaral ng Ina'
+          : 'Mother Highest Educational Attainment',
+      father = lang == EccdLanguage.tagalog ? 'Pangalan ng Ama' : 'Father Name',
+      fatherOcc = lang == EccdLanguage.tagalog
+          ? 'Hanapbuhay ng Ama'
+          : 'Father Occupation',
+      fatherEdu = lang == EccdLanguage.tagalog
+          ? 'Pinakamataas na Natapos na Pag-aaral ng Ama'
+          : 'Father Highest Educational Attainment',
+      motherAgeAtBirth = lang == EccdLanguage.tagalog
+          ? 'Edad ng Ina sa Panganganak'
+          : "Mother's Age at Birth",
+      firstCol = lang == EccdLanguage.tagalog ? 'Unang Pagtataya' : 'Pre test',
+      secondCol = lang == EccdLanguage.tagalog
+          ? 'Pangalawang Pagtataya'
+          : 'Post test',
+      thirdCol = lang == EccdLanguage.tagalog
+          ? 'Panghuling Pagtataya'
+          : 'Conditional Test',
+      scoreRow = lang == EccdLanguage.tagalog ? 'Iskor' : 'Score',
+      firstAssessment = lang == EccdLanguage.tagalog
+          ? 'Unang Pagtataya'
+          : 'First Assessment',
+      secondAssessment = lang == EccdLanguage.tagalog
+          ? 'Pangalawang Pagtataya'
+          : 'Second Assessment',
+      thirdAssessment = lang == EccdLanguage.tagalog
+          ? 'Panghuling Pagtataya'
+          : 'Final Assessment',
+      domains = lang == EccdLanguage.tagalog ? 'DOMAINS' : 'DOMAINS';
 }

@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../core/constants.dart';
 import '../../../core/unsaved_guard.dart';
-import '../../../core/validators.dart';
+import '../../../db/schema.dart';
 import '../../../services/learner_service.dart';
 
 class TeacherLearnerProfilePage extends StatefulWidget {
@@ -34,12 +34,14 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
   final barangayCtrl = TextEditingController();
   final motherNameCtrl = TextEditingController();
   final motherOccupationCtrl = TextEditingController();
+  final motherEducationCtrl = TextEditingController();
   final fatherNameCtrl = TextEditingController();
   final fatherOccupationCtrl = TextEditingController();
-  final parentNameCtrl = TextEditingController();
-  final parentOccupationCtrl = TextEditingController();
+  final fatherEducationCtrl = TextEditingController();
+  final guardianNameCtrl = TextEditingController();
+  final guardianOccupationCtrl = TextEditingController();
+  final guardianEducationCtrl = TextEditingController();
   final ageMotherAtBirthCtrl = TextEditingController();
-
 
   String? _parentNameValidator(String? v, String label) {
     if (v == null || v.isEmpty) return null; // optional
@@ -50,6 +52,7 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
     }
     return null;
   }
+
   String? _pupilNameValidator(String? v, String label, {bool required = true}) {
     final value = v?.trim() ?? '';
 
@@ -65,10 +68,23 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
 
     return null;
   }
+
+  String? _occupationValidator(String? v, String label) {
+    final value = v?.trim() ?? '';
+    if (value.isEmpty) return null;
+    final occupationRegex = RegExp(r"^[A-Za-z]+([ '\-][A-Za-z]+)*$");
+    if (!occupationRegex.hasMatch(value)) {
+      return '$label must contain letters only';
+    }
+    return null;
+  }
+
   String gender = 'M';
+  String dominantHand = '';
   DateTime? birthDate;
   bool dirty = false;
   bool loading = true;
+  bool guardianSameAsParent = false;
 
   @override
   void initState() {
@@ -89,10 +105,13 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
     barangayCtrl.dispose();
     motherNameCtrl.dispose();
     motherOccupationCtrl.dispose();
+    motherEducationCtrl.dispose();
     fatherNameCtrl.dispose();
     fatherOccupationCtrl.dispose();
-    parentNameCtrl.dispose();
-    parentOccupationCtrl.dispose();
+    fatherEducationCtrl.dispose();
+    guardianNameCtrl.dispose();
+    guardianOccupationCtrl.dispose();
+    guardianEducationCtrl.dispose();
     ageMotherAtBirthCtrl.dispose();
     super.dispose();
   }
@@ -113,25 +132,27 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
     barangayCtrl.text = (row['barangay'] ?? '').toString();
     motherNameCtrl.text = (row['mother_name'] ?? '').toString();
     motherOccupationCtrl.text = (row['mother_occupation'] ?? '').toString();
+    motherEducationCtrl.text = (row['mother_education'] ?? '').toString();
     fatherNameCtrl.text = (row['father_name'] ?? '').toString();
     fatherOccupationCtrl.text = (row['father_occupation'] ?? '').toString();
-    parentNameCtrl.text = (row['parent_name'] ?? '').toString();
-    parentOccupationCtrl.text = (row['parent_occupation'] ?? '').toString();
+    fatherEducationCtrl.text = (row['father_education'] ?? '').toString();
+    guardianNameCtrl.text = (row[DbSchema.cLearnerGuardianName] ?? '')
+        .toString();
+    guardianOccupationCtrl.text =
+        (row[DbSchema.cLearnerGuardianOccupation] ?? '').toString();
+    guardianEducationCtrl.text = (row[DbSchema.cLearnerGuardianEducation] ?? '')
+        .toString();
     ageMotherAtBirthCtrl.text = (row['age_mother_at_birth'] ?? '').toString();
+    guardianSameAsParent = false;
 
     final g = (row['gender'] ?? 'M').toString().toUpperCase();
     gender = g == 'F' ? 'F' : 'M';
+    dominantHand = (row[DbSchema.cLearnerDominantHand] ?? '').toString();
 
     final birthRaw = (row['birth_date'] ?? '').toString();
     birthDate = _parseDateFlexible(birthRaw);
 
     setState(() => loading = false);
-  }
-
-  String get _ageDecimal {
-    if (birthDate == null) return '-';
-    final months = _monthsBetween(birthDate!, DateTime.now());
-    return '${months ~/ 12}.${months % 12}';
   }
 
   int get _derivedAgeYears {
@@ -205,10 +226,24 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
       barangay: barangayCtrl.text,
       motherName: motherNameCtrl.text,
       motherOccupation: motherOccupationCtrl.text,
+      motherEducation: motherEducationCtrl.text,
       fatherName: fatherNameCtrl.text,
       fatherOccupation: fatherOccupationCtrl.text,
-      parentName: parentNameCtrl.text,
-      parentOccupation: parentOccupationCtrl.text,
+      fatherEducation: fatherEducationCtrl.text,
+      dominantHand: dominantHand,
+      parentName: _derivedParentName(),
+      parentEducation: _derivedParentEducation(),
+      guardianName: guardianSameAsParent
+          ? _derivedParentName()
+          : guardianNameCtrl.text,
+      guardianOccupation: guardianSameAsParent
+          ? (motherOccupationCtrl.text.trim().isNotEmpty
+                ? motherOccupationCtrl.text
+                : fatherOccupationCtrl.text)
+          : guardianOccupationCtrl.text,
+      guardianEducation: guardianSameAsParent
+          ? _derivedParentEducation()
+          : guardianEducationCtrl.text,
       ageMotherAtBirth: ageMotherAtBirthCtrl.text,
     );
 
@@ -237,6 +272,7 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
     return UnsavedGuard(
       hasUnsavedChanges: dirty,
       child: Scaffold(
+        backgroundColor: const Color(0xFFF7F4F4),
         appBar: AppBar(
           backgroundColor: AppColors.maroon,
           foregroundColor: Colors.white,
@@ -255,6 +291,7 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
                   children: [
                     _sectionCard(
                       'Required Information',
+                      icon: Icons.badge_outlined,
                       LayoutBuilder(
                         builder: (context, constraints) {
                           final columns = constraints.maxWidth >= 900
@@ -273,7 +310,7 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
                               _field(
                                 lastNameCtrl,
                                 'Last Name',
-                                    (v) => _pupilNameValidator(v, 'Last Name'),
+                                (v) => _pupilNameValidator(v, 'Last Name'),
                                 width: fieldWidth,
                                 inputFormatters: [
                                   FilteringTextInputFormatter.allow(
@@ -284,7 +321,7 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
                               _field(
                                 firstNameCtrl,
                                 'First Name',
-                                    (v) => _pupilNameValidator(v, 'Last Name'),
+                                (v) => _pupilNameValidator(v, 'First Name'),
                                 width: fieldWidth,
                                 inputFormatters: [
                                   FilteringTextInputFormatter.allow(
@@ -295,7 +332,11 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
                               _field(
                                 middleNameCtrl,
                                 'Middle Name',
-                                    (v) => _pupilNameValidator(v, 'Last Name', required: false),
+                                (v) => _pupilNameValidator(
+                                  v,
+                                  'Middle Name',
+                                  required: false,
+                                ),
                                 width: fieldWidth,
                                 inputFormatters: [
                                   FilteringTextInputFormatter.allow(
@@ -307,6 +348,12 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
                                 width: fieldWidth,
                                 child: OutlinedButton(
                                   style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(
+                                      color: Color(0xFFBCA5A5),
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
                                     padding: const EdgeInsets.symmetric(
                                       vertical: 16,
                                       horizontal: 12,
@@ -323,6 +370,25 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
                                     ),
                                   ),
                                 ),
+                              ),
+                              _field(
+                                lrnCtrl,
+                                'LRN',
+                                (v) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'LRN is required';
+                                  }
+                                  if (v.trim().length > 12) {
+                                    return 'LRN must be at most 12 digits';
+                                  }
+                                  return null;
+                                },
+                                width: fieldWidth,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(12),
+                                ],
                               ),
                               SizedBox(
                                 width: fieldWidth,
@@ -342,30 +408,7 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
                                     gender = v ?? 'M';
                                     dirty = true;
                                   }),
-                                  decoration: const InputDecoration(
-                                    labelText: 'Gender',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                ),
-                              ),
-                              Container(
-                                width: fieldWidth,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 14,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  border: Border.all(
-                                    color: const Color(0xFFE0E0E0),
-                                  ),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  'Age (derived): $_ageDecimal',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                  decoration: _inputDecoration('Gender'),
                                 ),
                               ),
                             ],
@@ -376,6 +419,7 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
                     const SizedBox(height: 12),
                     _sectionCard(
                       'Optional Information',
+                      icon: Icons.edit_note_outlined,
                       LayoutBuilder(
                         builder: (context, constraints) {
                           final columns = constraints.maxWidth >= 900
@@ -387,149 +431,495 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
                               (constraints.maxWidth - ((columns - 1) * 10)) /
                               columns;
 
-                          return Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
+                          Widget group(String title, List<Widget> fields) {
+                            return Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                border: Border.all(
+                                  color: const Color(0xFFE8E1E1),
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    title,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF4B2A2E),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 10,
+                                    runSpacing: 10,
+                                    children: fields,
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              _field(
-                                lrnCtrl,
-                                'LRN',
-                                null,
-                                width: fieldWidth,
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                ],
-                              ),
-                              _field(
-                                provinceCtrl,
-                                'Province',
-                                null,
-                                width: fieldWidth,
-                              ),
-                              _field(cityCtrl, 'City', null, width: fieldWidth),
-                              _field(
-                                barangayCtrl,
-                                'Barangay',
-                                null,
-                                width: fieldWidth,
-                              ),
-                              _field(
-                                siblingsCtrl,
-                                'Number of Siblings',
-                                    (v) {
-                                  if (v == null || v.isEmpty) return null;
-
-                                  final siblings = int.tryParse(v);
-                                  if (siblings == null) return 'Invalid number';
-                                  if (siblings < 0) return 'Cannot be negative';
-
-                                  return null;
-                                },
-                                width: fieldWidth,
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                ],
-                                onChanged: () => formKey.currentState!.validate(),
-                              ),
-                              _field(
-                                birthOrderCtrl,
-                                'Birth Order',
-                                    (v) {
-                                  if (v == null || v.isEmpty) return null;
-
-                                  final birthOrder = int.tryParse(v);
-                                  if (birthOrder == null) return 'Invalid number';
-                                  if (birthOrder <= 0) return 'Must be at least 1';
-
-                                  final siblings = int.tryParse(siblingsCtrl.text);
-                                  if (siblings != null) {
-                                    final totalChildren = siblings + 1;
-
-                                    if (birthOrder > totalChildren) {
-                                      return 'Cannot exceed total children ($totalChildren)';
+                              group('General', [
+                                SizedBox(
+                                  width: constraints.maxWidth,
+                                  child: constraints.maxWidth >= 620
+                                      ? Row(
+                                          children: [
+                                            Expanded(
+                                              child: _field(
+                                                provinceCtrl,
+                                                'Province',
+                                                null,
+                                                width: double.infinity,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: _field(
+                                                cityCtrl,
+                                                'City',
+                                                null,
+                                                width: double.infinity,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: _field(
+                                                barangayCtrl,
+                                                'Barangay',
+                                                null,
+                                                width: double.infinity,
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : Column(
+                                          children: [
+                                            _field(
+                                              provinceCtrl,
+                                              'Province',
+                                              null,
+                                              width: double.infinity,
+                                            ),
+                                            const SizedBox(height: 10),
+                                            _field(
+                                              cityCtrl,
+                                              'City',
+                                              null,
+                                              width: double.infinity,
+                                            ),
+                                            const SizedBox(height: 10),
+                                            _field(
+                                              barangayCtrl,
+                                              'Barangay',
+                                              null,
+                                              width: double.infinity,
+                                            ),
+                                          ],
+                                        ),
+                                ),
+                                _field(
+                                  siblingsCtrl,
+                                  'Number of Siblings',
+                                  (v) {
+                                    if (v == null || v.isEmpty) return null;
+                                    final siblings = int.tryParse(v);
+                                    if (siblings == null)
+                                      return 'Invalid number';
+                                    if (siblings < 0)
+                                      return 'Cannot be negative';
+                                    return null;
+                                  },
+                                  width: fieldWidth,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  onChanged: () =>
+                                      formKey.currentState!.validate(),
+                                ),
+                                _field(
+                                  birthOrderCtrl,
+                                  'Birth Order',
+                                  (v) {
+                                    if (v == null || v.isEmpty) return null;
+                                    final birthOrder = int.tryParse(v);
+                                    if (birthOrder == null)
+                                      return 'Invalid number';
+                                    if (birthOrder <= 0)
+                                      return 'Must be at least 1';
+                                    final siblings = int.tryParse(
+                                      siblingsCtrl.text,
+                                    );
+                                    if (siblings != null) {
+                                      final totalChildren = siblings + 1;
+                                      if (birthOrder > totalChildren) {
+                                        return 'Cannot exceed total children ($totalChildren)';
+                                      }
                                     }
-                                  }
-
-                                  return null;
-                                },
-                                width: fieldWidth,
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                ],
-                              ),
-                              _field(
-                                motherNameCtrl,
-                                'Mother Name',
-                                    (v) => _pupilNameValidator(v, 'Last Name', required: false),
-                                width: fieldWidth,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.allow(
-                                    RegExp(r"[A-Za-z\s\-']"),
+                                    return null;
+                                  },
+                                  width: fieldWidth,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                ),
+                                SizedBox(
+                                  width: fieldWidth,
+                                  child: DropdownButtonFormField<String>(
+                                    initialValue: dominantHand.isEmpty
+                                        ? null
+                                        : dominantHand,
+                                    items: const [
+                                      DropdownMenuItem(
+                                        value: 'Left',
+                                        child: Text('Left'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'Right',
+                                        child: Text('Right'),
+                                      ),
+                                    ],
+                                    onChanged: (v) => setState(() {
+                                      dominantHand = v ?? '';
+                                      dirty = true;
+                                    }),
+                                    decoration: _inputDecoration(
+                                      'Dominant Hand',
+                                    ),
                                   ),
-                                ],
-                              ),
-                              _field(
-                                motherOccupationCtrl,
-                                "Mother's Occupation",
-                                null,
-                                width: fieldWidth,
-                              ),
-                              _field(
-                                ageMotherAtBirthCtrl,
-                                "Mother's Age at Birth",
-                                null,
-                                width: fieldWidth,
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                ],
-                              ),
-                              _field(
-                                fatherNameCtrl,
-                                'Father Name',
-                                    (v) => _pupilNameValidator(v, 'Last Name', required: false),
-                                width: fieldWidth,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.allow(
-                                    RegExp(r"[A-Za-z\s\-']"),
+                                ),
+                              ]),
+                              const SizedBox(height: 10),
+                              group("Mother's Details", [
+                                SizedBox(
+                                  width: constraints.maxWidth,
+                                  child: constraints.maxWidth >= 620
+                                      ? Row(
+                                          children: [
+                                            Expanded(
+                                              child: _field(
+                                                motherNameCtrl,
+                                                'Mother Name',
+                                                (v) => _pupilNameValidator(
+                                                  v,
+                                                  'Mother Name',
+                                                  required: false,
+                                                ),
+                                                width: double.infinity,
+                                                inputFormatters: [
+                                                  FilteringTextInputFormatter.allow(
+                                                    RegExp(r"[A-Za-z\s\-']"),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: _field(
+                                                motherOccupationCtrl,
+                                                "Mother's Occupation",
+                                                (v) => _occupationValidator(
+                                                  v,
+                                                  "Mother's Occupation",
+                                                ),
+                                                width: double.infinity,
+                                                inputFormatters: [
+                                                  FilteringTextInputFormatter.allow(
+                                                    RegExp(r"[A-Za-z\s\-']"),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: _field(
+                                                motherEducationCtrl,
+                                                "Mother's Highest Educational Attainment",
+                                                null,
+                                                width: double.infinity,
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : Column(
+                                          children: [
+                                            _field(
+                                              motherNameCtrl,
+                                              'Mother Name',
+                                              (v) => _pupilNameValidator(
+                                                v,
+                                                'Mother Name',
+                                                required: false,
+                                              ),
+                                              width: double.infinity,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter.allow(
+                                                  RegExp(r"[A-Za-z\s\-']"),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 10),
+                                            _field(
+                                              motherOccupationCtrl,
+                                              "Mother's Occupation",
+                                              (v) => _occupationValidator(
+                                                v,
+                                                "Mother's Occupation",
+                                              ),
+                                              width: double.infinity,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter.allow(
+                                                  RegExp(r"[A-Za-z\s\-']"),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 10),
+                                            _field(
+                                              motherEducationCtrl,
+                                              "Mother's Highest Educational Attainment",
+                                              null,
+                                              width: double.infinity,
+                                            ),
+                                          ],
+                                        ),
+                                ),
+                                _field(
+                                  ageMotherAtBirthCtrl,
+                                  "Mother's Age at Birth",
+                                  null,
+                                  width: fieldWidth,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                ),
+                              ]),
+                              const SizedBox(height: 10),
+                              group("Father's Details", [
+                                SizedBox(
+                                  width: constraints.maxWidth,
+                                  child: constraints.maxWidth >= 620
+                                      ? Row(
+                                          children: [
+                                            Expanded(
+                                              child: _field(
+                                                fatherNameCtrl,
+                                                'Father Name',
+                                                (v) => _pupilNameValidator(
+                                                  v,
+                                                  'Father Name',
+                                                  required: false,
+                                                ),
+                                                width: double.infinity,
+                                                inputFormatters: [
+                                                  FilteringTextInputFormatter.allow(
+                                                    RegExp(r"[A-Za-z\s\-']"),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: _field(
+                                                fatherOccupationCtrl,
+                                                "Father's Occupation",
+                                                (v) => _occupationValidator(
+                                                  v,
+                                                  "Father's Occupation",
+                                                ),
+                                                width: double.infinity,
+                                                inputFormatters: [
+                                                  FilteringTextInputFormatter.allow(
+                                                    RegExp(r"[A-Za-z\s\-']"),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: _field(
+                                                fatherEducationCtrl,
+                                                "Father's Highest Educational Attainment",
+                                                null,
+                                                width: double.infinity,
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : Column(
+                                          children: [
+                                            _field(
+                                              fatherNameCtrl,
+                                              'Father Name',
+                                              (v) => _pupilNameValidator(
+                                                v,
+                                                'Father Name',
+                                                required: false,
+                                              ),
+                                              width: double.infinity,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter.allow(
+                                                  RegExp(r"[A-Za-z\s\-']"),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 10),
+                                            _field(
+                                              fatherOccupationCtrl,
+                                              "Father's Occupation",
+                                              (v) => _occupationValidator(
+                                                v,
+                                                "Father's Occupation",
+                                              ),
+                                              width: double.infinity,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter.allow(
+                                                  RegExp(r"[A-Za-z\s\-']"),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 10),
+                                            _field(
+                                              fatherEducationCtrl,
+                                              "Father's Highest Educational Attainment",
+                                              null,
+                                              width: double.infinity,
+                                            ),
+                                          ],
+                                        ),
+                                ),
+                              ]),
+                              const SizedBox(height: 10),
+                              group('Guardian Details', [
+                                SizedBox(
+                                  width: constraints.maxWidth,
+                                  child: CheckboxListTile(
+                                    value: guardianSameAsParent,
+                                    contentPadding: EdgeInsets.zero,
+                                    controlAffinity:
+                                        ListTileControlAffinity.leading,
+                                    title: const Text('Same as parent details'),
+                                    onChanged: (v) {
+                                      final useSame = v ?? false;
+                                      setState(() {
+                                        guardianSameAsParent = useSame;
+                                        if (useSame) {
+                                          guardianNameCtrl.text =
+                                              _derivedParentName();
+                                          guardianOccupationCtrl.text =
+                                              (motherOccupationCtrl.text
+                                                  .trim()
+                                                  .isNotEmpty
+                                              ? motherOccupationCtrl.text
+                                              : fatherOccupationCtrl.text);
+                                          guardianEducationCtrl.text =
+                                              _derivedParentEducation();
+                                        }
+                                      });
+                                    },
                                   ),
-                                ],
-                              ),
-                              _field(
-                                fatherOccupationCtrl,
-                                "Father's Occupation",
-                                null,
-                                width: fieldWidth,
-                              ),
-                              _field(
-                                parentNameCtrl,
-                                "Parent/Guardian's Name",
-                                null,
-                                width: fieldWidth,
-                              ),
-                              _field(
-                                parentNameCtrl,
-                                "Parent/Guardian's Name",
-                                    (v) => _parentNameValidator(v, "Parent/Guardian's Name"),
-                                width: fieldWidth,
-                              ),
+                                ),
+                                SizedBox(
+                                  width: constraints.maxWidth,
+                                  child: constraints.maxWidth >= 620
+                                      ? Row(
+                                          children: [
+                                            Expanded(
+                                              child: _field(
+                                                guardianNameCtrl,
+                                                "Guardian's Name",
+                                                (v) => _parentNameValidator(
+                                                  v,
+                                                  "Guardian's Name",
+                                                ),
+                                                width: double.infinity,
+                                                readOnly: guardianSameAsParent,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: _field(
+                                                guardianOccupationCtrl,
+                                                "Guardian's Occupation",
+                                                null,
+                                                width: double.infinity,
+                                                readOnly: guardianSameAsParent,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: _field(
+                                                guardianEducationCtrl,
+                                                "Guardian's Highest Educational Attainment",
+                                                null,
+                                                width: double.infinity,
+                                                readOnly: guardianSameAsParent,
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : Column(
+                                          children: [
+                                            _field(
+                                              guardianNameCtrl,
+                                              "Guardian's Name",
+                                              (v) => _parentNameValidator(
+                                                v,
+                                                "Guardian's Name",
+                                              ),
+                                              width: double.infinity,
+                                              readOnly: guardianSameAsParent,
+                                            ),
+                                            const SizedBox(height: 10),
+                                            _field(
+                                              guardianOccupationCtrl,
+                                              "Guardian's Occupation",
+                                              null,
+                                              width: double.infinity,
+                                              readOnly: guardianSameAsParent,
+                                            ),
+                                            const SizedBox(height: 10),
+                                            _field(
+                                              guardianEducationCtrl,
+                                              "Guardian's Highest Educational Attainment",
+                                              null,
+                                              width: double.infinity,
+                                              readOnly: guardianSameAsParent,
+                                            ),
+                                          ],
+                                        ),
+                                ),
+                              ]),
                             ],
                           );
                         },
                       ),
                     ),
                     const SizedBox(height: 14),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.maroon,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.maroon,
+                          foregroundColor: Colors.white,
+                          elevation: 1.5,
+                          minimumSize: const Size(240, 48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        onPressed: _save,
+                        icon: const Icon(Icons.save_outlined, size: 18),
+                        label: const Text('Save Changes'),
                       ),
-                      onPressed: _save,
-                      child: const Text('Save Changes'),
                     ),
                   ],
                 ),
@@ -541,20 +931,36 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
     );
   }
 
-  Widget _sectionCard(String title, Widget child) {
+  Widget _sectionCard(String title, Widget child, {IconData? icon}) {
     return Card(
-      elevation: 0,
+      elevation: 0.5,
+      color: Colors.white,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFE6E6E6)),
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: Color(0xFFE8E1E1)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 10),
+            Row(
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 18, color: AppColors.maroon),
+                  const SizedBox(width: 8),
+                ],
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                    color: Color(0xFF272727),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             child,
           ],
         ),
@@ -569,23 +975,42 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
     required double width,
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
-        VoidCallback? onChanged,   // ADD THIS
-
-      }) {
+    bool readOnly = false,
+    VoidCallback? onChanged, // ADD THIS
+  }) {
     return SizedBox(
       width: width,
       child: TextFormField(
         controller: c,
         validator: validator,
+        readOnly: readOnly,
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
+        onChanged: (_) {
+          if (onChanged != null) onChanged();
+        },
+        decoration: _inputDecoration(label).copyWith(
+          fillColor: readOnly ? const Color(0xFFF1EEEE) : Colors.white,
         ),
       ),
     );
   }
+
+  InputDecoration _inputDecoration(String label) => InputDecoration(
+    labelText: label,
+    filled: true,
+    fillColor: Colors.white,
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Color(0xFFBCA5A5)),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AppColors.maroon, width: 1.3),
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+  );
 
   DateTime? _parseDateFlexible(String input) {
     final s = input.trim();
@@ -607,5 +1032,21 @@ class _TeacherLearnerProfilePageState extends State<TeacherLearnerProfilePage> {
     int months = (end.year - start.year) * 12 + end.month - start.month;
     if (end.day < start.day) months -= 1;
     return months < 0 ? 0 : months;
+  }
+
+  String _derivedParentName() =>
+      _joinNonEmpty([motherNameCtrl.text, fatherNameCtrl.text], ' / ');
+
+  String _derivedParentEducation() => _joinNonEmpty([
+    motherEducationCtrl.text,
+    fatherEducationCtrl.text,
+  ], ' / ');
+
+  String _joinNonEmpty(List<String> values, String separator) {
+    final list = values
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    return list.join(separator);
   }
 }

@@ -158,15 +158,32 @@ class _TeacherAddClassPageState extends State<TeacherAddClassPage> {
         'guardian_occupation',
         'guardian occupation',
       ]);
+      final parentEducation = cell(row, const [
+        'parent_education',
+        'parent education',
+        'parent_highest_educational_attainment',
+        'guardian_education',
+        'guardian education',
+      ]);
       final motherName = cell(row, const ['mother_name', 'mother name']);
       final motherOccupation = cell(row, const [
         'mother_occupation',
         'mother occupation',
       ]);
+      final motherEducation = cell(row, const [
+        'mother_education',
+        'mother education',
+        'mother_highest_educational_attainment',
+      ]);
       final fatherName = cell(row, const ['father_name', 'father name']);
       final fatherOccupation = cell(row, const [
         'father_occupation',
         'father occupation',
+      ]);
+      final fatherEducation = cell(row, const [
+        'father_education',
+        'father education',
+        'father_highest_educational_attainment',
       ]);
       final ageMotherAtBirth = cell(row, const [
         'age_mother_at_birth',
@@ -213,10 +230,13 @@ class _TeacherAddClassPageState extends State<TeacherAddClassPage> {
         barangay: barangay,
         parentName: parentName,
         parentOccupation: parentOccupation,
+        parentEducation: parentEducation,
         motherName: motherName,
         motherOccupation: motherOccupation,
+        motherEducation: motherEducation,
         fatherName: fatherName,
         fatherOccupation: fatherOccupation,
+        fatherEducation: fatherEducation,
         ageMotherAtBirth: ageMotherAtBirth,
         spouseOccupation: spouseOccupation,
       );
@@ -278,7 +298,7 @@ class _TeacherAddClassPageState extends State<TeacherAddClassPage> {
                         SizedBox(
                           width: 260,
                           child: DropdownButtonFormField<String>(
-                            value: schoolYear,
+                            initialValue: schoolYear,
                             items: _schoolYearOptions()
                                 .map(
                                   (sy) => DropdownMenuItem(
