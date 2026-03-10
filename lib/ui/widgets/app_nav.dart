@@ -147,7 +147,8 @@ class AppNav extends StatelessWidget {
     if (d.contains('romblon')) return 'assets/romblon_logo.jpg';
     if (d.contains('palawan')) return 'assets/palawan_logo.png';
     if (d.contains('calapan')) return 'assets/calapan_logo.jpeg';
+    if (d.contains('puerto')) return 'assets/puerto_prinsesa.jpg';
     if (d.contains('mimaropa')) return 'assets/mimaropa_logo.png';
-    return 'assets/div_logo.jpg';
+    return 'assets/puerto_prinsesa.jpg';
   }
 }

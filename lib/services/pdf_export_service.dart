@@ -23,6 +23,7 @@ class PdfExportService {
     required int classId,
     required String assessmentType,
     required EccdLanguage language,
+    int? exportingUserId,
   }) async {
     final type = assessmentType.trim().toLowerCase();
     final t = _Txt(language);
@@ -49,6 +50,18 @@ class PdfExportService {
     final teacher = teacherRows.isEmpty
         ? <String, Object?>{}
         : teacherRows.first;
+    Map<String, Object?> exportingUser = teacher;
+    if (exportingUserId != null) {
+      final exportingRows = await db.query(
+        DbSchema.tUsers,
+        where: '${DbSchema.cUserId}=?',
+        whereArgs: [exportingUserId],
+        limit: 1,
+      );
+      if (exportingRows.isNotEmpty) {
+        exportingUser = exportingRows.first;
+      }
+    }
 
     final snaps = {
       'pre': await _snap(learnerId, classId, 'pre'),
@@ -62,7 +75,9 @@ class PdfExportService {
       );
     }
 
-    final divLogo = await _img('assets/div_logo.jpg');
+    final divLogo = await _img(
+      _logoPathForDivision(_v(exportingUser, DbSchema.cUserDivision)),
+    );
     final regLogo = await _img('assets/mimaropa_logo.png');
     final kindergartenTop = await _imgAny([
       'assets/kindergarte.png',
@@ -124,7 +139,7 @@ class PdfExportService {
                   children: [
                     _header(
                       clazz,
-                      teacher,
+                      exportingUser,
                       t,
                       divLogo,
                       regLogo,
@@ -240,19 +255,19 @@ class PdfExportService {
 
   pw.Widget _header(
     Map<String, Object?> clazz,
-    Map<String, Object?> teacher,
+    Map<String, Object?> orgUser,
     _Txt t,
     pw.MemoryImage? left,
     pw.MemoryImage? right,
     pw.MemoryImage? topImage,
     pw.MemoryImage? bottomImage,
   ) {
-    final region = _v(teacher, DbSchema.cUserRegion).isEmpty
+    final region = _v(orgUser, DbSchema.cUserRegion).isEmpty
         ? 'MIMAROPA'
-        : _v(teacher, DbSchema.cUserRegion);
-    final division = _v(teacher, DbSchema.cUserDivision);
-    final district = _v(teacher, DbSchema.cUserDistrict);
-    final school = _v(teacher, DbSchema.cUserSchool);
+        : _v(orgUser, DbSchema.cUserRegion);
+    final division = _v(orgUser, DbSchema.cUserDivision);
+    final district = _v(orgUser, DbSchema.cUserDistrict);
+    final school = _v(orgUser, DbSchema.cUserSchool);
     return pw.Container(
       padding: const pw.EdgeInsets.all(6),
       decoration: pw.BoxDecoration(
@@ -944,6 +959,19 @@ class PdfExportService {
     _v(l, DbSchema.cLearnerLastName),
   ].where((e) => e.isNotEmpty).join(' ');
   String _safe(String iso) => iso.length >= 10 ? iso.substring(0, 10) : iso;
+
+  String _logoPathForDivision(String division) {
+    final d = division.toLowerCase();
+    if (d.contains('oriental')) return 'assets/oriental_min_logo.gif';
+    if (d.contains('occidental')) return 'assets/occidental_min_logo.png';
+    if (d.contains('marinduque')) return 'assets/marinduque_logo.jpg';
+    if (d.contains('romblon')) return 'assets/romblon_logo.jpg';
+    if (d.contains('palawan')) return 'assets/palawan_logo.png';
+    if (d.contains('calapan')) return 'assets/calapan_logo.jpeg';
+    if (d.contains('puerto')) return 'assets/puerto_prinsesa.jpg';
+    if (d.contains('mimaropa')) return 'assets/mimaropa_logo.png';
+    return 'assets/puerto_prinsesa.jpg';
+  }
 }
 
 class _Snap {

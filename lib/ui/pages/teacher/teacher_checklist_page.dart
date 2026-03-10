@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/constants.dart';
 import '../../../core/unsaved_guard.dart';
 import '../../../data/eccd_questions.dart';
 import '../../../services/assessment_service.dart';
+import '../../../services/auth_service.dart';
 import '../../../services/file_export_service.dart';
 import '../../../services/learner_service.dart';
 import '../../../services/pdf_export_service.dart';
@@ -159,11 +161,13 @@ class _TeacherChecklistPageState extends State<TeacherChecklistPage> {
     }
 
     try {
+      final exportingUserId = context.read<AuthService>().session?.userId;
       final bytes = await _pdf.buildLearnerPdf(
         learnerId: widget.learnerId,
         classId: widget.classId,
         assessmentType: _effectiveType,
         language: language,
+        exportingUserId: exportingUserId,
       );
       final saved = await _file.savePdf(
         filename: 'learner_${widget.learnerId}_$_effectiveType',
